@@ -503,8 +503,9 @@ async def get_youtube_embed_url(video_id: str):
 @app.post("/api/tts/synthesize")
 async def synthesize_speech(request: dict):
     """
-    Convert text to speech using Google Gemini 2.5 Flash Preview TTS model.
-    Supports multiple languages including English and Hindi.
+    Convert text to speech using Google Gemini TTS models.
+    Primary: gemini-2.5-flash-preview-tts
+    Fallback: gemini-2.5-pro (TTS only)
     
     Request body:
     {
@@ -545,32 +546,110 @@ async def synthesize_speech(request: dict):
         language_instruction = f"Read this text aloud in {language} with clear pronunciation:"
         contents = f"{language_instruction} {text}"
         
-        # Call Gemini 2.5 Flash Preview TTS model
-        response = genai_client.models.generate_content(
-            model="gemini-2.5-flash-preview-tts",
-            contents=contents,
-            config=types.GenerateContentConfig(
-                response_modalities=["AUDIO"],
-                speech_config=types.SpeechConfig(
-                    voice_config=types.VoiceConfig(
-                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                            voice_name=voice_name,
+        # Try primary model: Gemini 2.5 Flash Preview TTS
+        print(f"[TTS] Trying Flash Preview TTS - voice: {voice_name}, language: {language}")
+        
+        try:
+            response = genai_client.models.generate_content(
+                model="gemini-2.5-flash-preview-tts",
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    response_modalities=["AUDIO"],
+                    speech_config=types.SpeechConfig(
+                        voice_config=types.VoiceConfig(
+                            prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                voice_name=voice_name,
+                            )
                         )
                     )
                 )
             )
-        )
+            
+            # Try to extract audio from Flash model
+            audio_result = _extract_audio(response)
+            if audio_result:
+                print(f"[TTS] ✓ Got audio from Flash Preview TTS")
+                audio_result["model"] = "gemini-2.5-flash-preview-tts"
+                return audio_result
+            else:
+                print("[TTS] Flash returned no audio, trying fallback...")
+                
+        except Exception as flash_error:
+            print(f"[TTS] Flash error: {str(flash_error)[:100]}, trying fallback...")
         
-        # Extract audio data from response with proper null checks
-        if response and hasattr(response, 'candidates') and response.candidates:
-            candidate = response.candidates[0]
-            if candidate and hasattr(candidate, 'content') and candidate.content:
-                content = candidate.content
-                if hasattr(content, 'parts') and content.parts:
-                    part = content.parts[0]
-                    if part and hasattr(part, 'inline_data') and part.inline_data:
-                        # Convert bytes to base64 string for JSON response
-                        audio_data = part.inline_data.data
+        # Fallback: Gemini 2.5 Pro TTS
+        print(f"[TTS] Trying Gemini 2.5 Pro TTS fallback - voice: {voice_name}")
+        
+        try:
+            response = genai_client.models.generate_content(
+                model="gemini-2.5-pro",
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    response_modalities=["AUDIO"],
+                    speech_config=types.SpeechConfig(
+                        voice_config=types.VoiceConfig(
+                            prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                voice_name=voice_name,
+                            )
+                        )
+                    )
+                )
+            )
+            
+            # Try to extract audio from Pro model
+            audio_result = _extract_audio(response)
+            if audio_result:
+                print(f"[TTS] ✓ Got audio from Gemini 2.5 Pro TTS")
+                audio_result["model"] = "gemini-2.5-pro"
+                return audio_result
+            else:
+                print("[TTS] Pro returned no audio")
+                
+        except Exception as pro_error:
+            print(f"[TTS] Pro error: {str(pro_error)[:100]}")
+        
+        # If both models fail, fall back to browser TTS
+        return {
+            "text": text,
+            "language": language,
+            "useBrowserTTS": True,
+            "isMock": True,
+            "fallbackReason": "Both Gemini TTS models failed - using browser SpeechSynthesis"
+        }
+        
+    except ImportError as e:
+        return {
+            "text": text,
+            "language": language,
+            "useBrowserTTS": True,
+            "isMock": True,
+            "fallbackReason": f"GenAI package not available: {str(e)}"
+        }
+    except Exception as e:
+        print(f"[TTS] Unexpected error: {str(e)}")
+        return {
+            "text": text,
+            "language": language,
+            "useBrowserTTS": True,
+            "isMock": True,
+            "fallbackReason": f"Gemini TTS error: {str(e)}"
+        }
+
+
+def _extract_audio(response) -> dict | None:
+    """Extract audio data from Gemini API response."""
+    if not response:
+        return None
+        
+    if hasattr(response, 'candidates') and response.candidates:
+        candidate = response.candidates[0]
+        if candidate and hasattr(candidate, 'content') and candidate.content:
+            content = candidate.content
+            if hasattr(content, 'parts') and content.parts:
+                part = content.parts[0]
+                if part and hasattr(part, 'inline_data') and part.inline_data:
+                    audio_data = part.inline_data.data
+                    if audio_data and len(audio_data) > 0:
                         audio_base64 = base64.b64encode(audio_data).decode('utf-8')
                         mime_type = part.inline_data.mime_type or "audio/wav"
                         
@@ -580,38 +659,9 @@ async def synthesize_speech(request: dict):
                             "language": language,
                             "voice": voice_name,
                             "isMock": False,
-                            "useBrowserTTS": False,
-                            "model": "gemini-2.5-flash-preview-tts"
+                            "useBrowserTTS": False
                         }
-        
-        # Fallback to browser TTS if no audio data
-        return {
-            "text": text,
-            "language": language,
-            "useBrowserTTS": True,
-            "isMock": True,
-            "message": "No audio data received - using browser SpeechSynthesis"
-        }
-        
-    except ImportError as e:
-        # google-genai package not installed
-        return {
-            "text": text,
-            "language": language,
-            "useBrowserTTS": True,
-            "isMock": True,
-            "fallbackReason": f"GenAI package not available: {str(e)}"
-        }
-    except Exception as e:
-        # Fall back to browser TTS on error
-        print(f"Gemini TTS error: {str(e)}")
-        return {
-            "text": text,
-            "language": language,
-            "useBrowserTTS": True,
-            "isMock": True,
-            "fallbackReason": f"Gemini TTS error: {str(e)}"
-        }
+    return None
 
 
 @app.post("/api/tts/translate")
