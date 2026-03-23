@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import LessonRenderer from '../components/LessonRenderer';
 import LessonPDFExporter from '../components/LessonPDFExporter';
+import LessonAudioPlayer from '../components/LessonAudioPlayer';
 
 export default function CoursePage() {
   const { courseTitle } = useParams();
@@ -161,7 +162,12 @@ export default function CoursePage() {
                   )}
                 </div>
                 <LessonRenderer content={currentLesson.content} />
-                
+
+                {/* Audio Narration Section */}
+                <div className="mt-8">
+                  <LessonAudioPlayer lesson={currentLesson} />
+                </div>
+
                 {/* Resources Section */}
                 {currentLesson.resources && currentLesson.resources.length > 0 && (
                   <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">

@@ -24,6 +24,9 @@ app.add_middleware(
 # YouTube API Key (get from https://console.cloud.google.com/)
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 
+# Google Gemini API Key for TTS and Translation (get from https://makersuite.google.com/app/apikey)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
 
 def generate_mock_course(topic: str) -> dict:
     """Generate a mock course structure for testing."""
@@ -484,6 +487,174 @@ async def get_youtube_embed_url(video_id: str):
     return {
         "embedUrl": f"https://www.youtube.com/embed/{video_id}",
         "watchUrl": f"https://www.youtube.com/watch?v={video_id}"
+    }
+
+
+@app.post("/api/tts/synthesize")
+async def synthesize_speech(request: dict):
+    """
+    Convert text to speech using Google Cloud TTS.
+    Supports multiple languages including English and Hindi.
+    
+    Request body:
+    {
+        "text": "Text to convert to speech",
+        "language": "en-US" | "hi-IN" | "en-IN" (for Hinglish)
+    }
+    """
+    text = request.get("text", "")
+    language = request.get("language", "en-US")  # Default to English
+    
+    if not text:
+        raise HTTPException(status_code=400, detail="Text is required")
+    
+    # If no API key, return mock audio URL
+    if not GEMINI_API_KEY:
+        # Return a demo audio file URL (using a placeholder)
+        return {
+            "audioContent": None,
+            "audioUrl": "https://docs.google.com/speech/tts?text=" + text[:100].replace(" ", "+"),
+            "language": language,
+            "isMock": True,
+            "message": "Demo mode: Add GEMINI_API_KEY for real TTS"
+        }
+    
+    try:
+        # Use Google Cloud TTS API via Gemini/Google AI
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"https://texttospeech.googleapis.com/v1/text:synthesize?key={GEMINI_API_KEY}",
+                json={
+                    "input": {"text": text},
+                    "voice": {
+                        "languageCode": language,
+                        "name": "en-IN-Standard-A" if language == "en-IN" else "en-US-Standard-A" if language == "en-US" else "hi-IN-Standard-A"
+                    },
+                    "audioConfig": {"audioEncoding": "MP3"}
+                },
+                timeout=30.0
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail="Failed to synthesize speech"
+                )
+            
+            data = response.json()
+            return {
+                "audioContent": data.get("audioContent"),
+                "audioUrl": None,
+                "language": language,
+                "isMock": False
+            }
+            
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error synthesizing speech: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error: {str(e)}"
+        )
+
+
+@app.post("/api/tts/translate")
+async def translate_text(request: dict):
+    """
+    Translate text from English to Hindi/Hinglish.
+    
+    Request body:
+    {
+        "text": "Text to translate",
+        "targetLanguage": "hi" (Hindi) | "en-IN" (Hinglish)
+    }
+    """
+    text = request.get("text", "")
+    target_language = request.get("targetLanguage", "hi")
+    
+    if not text:
+        raise HTTPException(status_code=400, detail="Text is required")
+    
+    # If no API key, return mock translation
+    if not GEMINI_API_KEY:
+        return {
+            "translatedText": f"[Hindi translation of: {text[:50]}...]",
+            "targetLanguage": target_language,
+            "isMock": True,
+            "message": "Demo mode: Add GEMINI_API_KEY for real translation"
+        }
+    
+    try:
+        # Use Google Translate API
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"https://translation.googleapis.com/language/translate/v2?key={GEMINI_API_KEY}",
+                json={
+                    "q": text,
+                    "source": "en",
+                    "target": target_language.split("-")[0],  # 'hi' for Hindi
+                    "format": "text"
+                },
+                timeout=30.0
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail="Failed to translate text"
+                )
+            
+            data = response.json()
+            translated = data.get("data", {}).get("translations", [{}])[0].get("translatedText", "")
+            
+            return {
+                "translatedText": translated,
+                "originalText": text,
+                "targetLanguage": target_language,
+                "isMock": False
+            }
+            
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error translating text: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error: {str(e)}"
+        )
+
+
+@app.get("/api/tts/voices")
+async def list_available_voices():
+    """List available TTS voices and languages."""
+    return {
+        "voices": [
+            {
+                "languageCode": "en-US",
+                "name": "English (US)",
+                "gender": "Female"
+            },
+            {
+                "languageCode": "en-GB",
+                "name": "English (UK)",
+                "gender": "Female"
+            },
+            {
+                "languageCode": "en-IN",
+                "name": "English (India) / Hinglish",
+                "gender": "Female"
+            },
+            {
+                "languageCode": "hi-IN",
+                "name": "Hindi",
+                "gender": "Female"
+            }
+        ]
     }
 
 

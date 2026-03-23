@@ -73,6 +73,7 @@ hackathon/
 - **Module Navigation**: Browse through modules and lessons
 - **Responsive UI**: Works on desktop and mobile
 - **PDF Export**: Download any lesson as a formatted PDF document
+- **🔊 Audio Narration**: Text-to-speech in multiple languages (English, Hinglish, Hindi)
 
 ## 🔧 API Endpoints
 
@@ -95,18 +96,18 @@ curl -X POST http://localhost:5000/api/generate-course \
 - [ ] AI Integration (Gemini/OpenAI) for real course generation
 - [ ] Auth0 Authentication
 - [ ] MongoDB Database for persistence
-- [ ] Multilingual Support (Hinglish TTS)
 - [ ] Deployment (Render + Vercel)
 
 ## ✅ Completed Features
 
 - [x] FastAPI Backend with course generation API
 - [x] React + Vite Frontend with Tailwind CSS
-- [x] Lesson Renderer with multiple content block types
+- [x] Lesson renderer with multiple content block types
 - [x] Interactive MCQs with feedback
 - [x] Course/module/lesson navigation
 - [x] PDF Export - Download lessons as formatted PDFs
-- [x] **YouTube Integration** - Search and embed educational videos
+- [x] YouTube Integration - Search and embed educational videos
+- [x] **Multilingual TTS** - Audio narration in English, Hinglish, and Hindi
 
 ## 🛠 Tech Stack
 
@@ -142,6 +143,19 @@ This is a **simplified MVP** to test the core functionality:
 6. (Optional) Restrict the API key to YouTube Data API only
 
 **Note:** Without an API key, the app shows demo/placeholder videos.
+
+### Google Cloud TTS & Translation (for audio narration)
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Enable these APIs:
+   - **Cloud Text-to-Speech API**
+   - **Cloud Translation API**
+3. Go to **Credentials** → **Create Credentials** → **API Key**
+4. Copy the API key to `server/.env`:
+   ```
+   GEMINI_API_KEY=your_api_key_here
+   ```
+
+**Note:** Without an API key, the app uses browser's built-in text-to-speech (lower quality).
 
 ### AI APIs (for future course generation)
 - **Google Gemini**: Get key from [Google AI Studio](https://makersuite.google.com/app/apikey)
