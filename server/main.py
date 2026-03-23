@@ -561,24 +561,28 @@ async def synthesize_speech(request: dict):
             )
         )
         
-        # Extract audio data from response
-        if response and response.candidates and response.candidates[0].content.parts:
-            part = response.candidates[0].content.parts[0]
-            if hasattr(part, 'inline_data') and part.inline_data:
-                # Convert bytes to base64 string for JSON response
-                audio_data = part.inline_data.data
-                audio_base64 = base64.b64encode(audio_data).decode('utf-8')
-                mime_type = part.inline_data.mime_type or "audio/wav"
-                
-                return {
-                    "audioContent": audio_base64,
-                    "mimeType": mime_type,
-                    "language": language,
-                    "voice": voice_name,
-                    "isMock": False,
-                    "useBrowserTTS": False,
-                    "model": "gemini-2.5-flash-preview-tts"
-                }
+        # Extract audio data from response with proper null checks
+        if response and hasattr(response, 'candidates') and response.candidates:
+            candidate = response.candidates[0]
+            if candidate and hasattr(candidate, 'content') and candidate.content:
+                content = candidate.content
+                if hasattr(content, 'parts') and content.parts:
+                    part = content.parts[0]
+                    if part and hasattr(part, 'inline_data') and part.inline_data:
+                        # Convert bytes to base64 string for JSON response
+                        audio_data = part.inline_data.data
+                        audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+                        mime_type = part.inline_data.mime_type or "audio/wav"
+                        
+                        return {
+                            "audioContent": audio_base64,
+                            "mimeType": mime_type,
+                            "language": language,
+                            "voice": voice_name,
+                            "isMock": False,
+                            "useBrowserTTS": False,
+                            "model": "gemini-2.5-flash-preview-tts"
+                        }
         
         # Fallback to browser TTS if no audio data
         return {
@@ -600,6 +604,7 @@ async def synthesize_speech(request: dict):
         }
     except Exception as e:
         # Fall back to browser TTS on error
+        print(f"Gemini TTS error: {str(e)}")
         return {
             "text": text,
             "language": language,
