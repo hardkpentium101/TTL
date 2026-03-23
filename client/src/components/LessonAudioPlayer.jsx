@@ -7,6 +7,7 @@ export default function LessonAudioPlayer({ lesson }) {
   const [language, setLanguage] = useState('en-US'); // Default to English
   const [audioUrl, setAudioUrl] = useState(null);
   const [error, setError] = useState('');
+  const [usingGeminiTTS, setUsingGeminiTTS] = useState(false);
   const audioRef = useRef(null);
 
   // Extract lesson text content for TTS
@@ -37,42 +38,73 @@ export default function LessonAudioPlayer({ lesson }) {
         language: lang
       });
 
-      // Use browser SpeechSynthesis API
-      if ('speechSynthesis' in window) {
+      const data = response.data;
+
+      // Track if we're using Gemini TTS
+      setUsingGeminiTTS(!data.useBrowserTTS);
+
+      // Check if we got real audio from Gemini TTS
+      if (data.audioContent && !data.useBrowserTTS) {
+        // Convert base64 audio to blob and play
+        const audioData = data.audioContent;
+        const mimeType = data.mimeType || 'audio/wav';
+        
+        // Decode base64 to binary
+        const binaryString = atob(audioData);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        const blob = new Blob([bytes], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        setAudioUrl(url);
+        
+        // Auto-play
+        setTimeout(() => {
+          if (audioRef.current) {
+            audioRef.current.play();
+            setIsPlaying(true);
+            setIsLoading(false);
+          }
+        }, 100);
+      } 
+      // Fallback to browser SpeechSynthesis
+      else if ('speechSynthesis' in window) {
         // Cancel any ongoing speech
         speechSynthesis.cancel();
-        
+
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = lang;
         utterance.rate = 1.0;
         utterance.pitch = 1.0;
         utterance.volume = 1.0;
-        
+
         // Try to find a voice matching the language
         const voices = speechSynthesis.getVoices();
-        const preferredVoice = voices.find(voice => 
+        const preferredVoice = voices.find(voice =>
           voice.lang.startsWith(lang.split('-')[0])
         );
         if (preferredVoice) {
           utterance.voice = preferredVoice;
         }
-        
+
         utterance.onstart = () => {
           setIsPlaying(true);
           setIsLoading(false);
         };
-        
+
         utterance.onend = () => {
           setIsPlaying(false);
         };
-        
+
         utterance.onerror = (event) => {
           setIsPlaying(false);
           setIsLoading(false);
           console.error('Speech synthesis error:', event);
           setError('Speech synthesis failed. Please try again.');
         };
-        
+
         speechSynthesis.speak(utterance);
       } else {
         setError('Your browser does not support text-to-speech');
@@ -252,12 +284,13 @@ export default function LessonAudioPlayer({ lesson }) {
 
       {/* Info text */}
       <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-        📖 Reading: {getLessonText().length} characters • 
-        {!GEMINI_API_KEY ? ' Using browser TTS (add API key for better quality)' : ' Using Google Cloud TTS'}
+        📖 Reading: {getLessonText().length} characters •
+        {usingGeminiTTS ? (
+          <span className="text-green-600 dark:text-green-400">🎙️ Using Gemini 2.5 Flash TTS</span>
+        ) : (
+          <span>🔊 Using browser SpeechSynthesis</span>
+        )}
       </p>
     </div>
   );
 }
-
-// Add this helper to access env var in component
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';

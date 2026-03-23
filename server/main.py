@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 import httpx
+import base64
 
 load_dotenv()
 
@@ -26,6 +27,15 @@ YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 
 # Google Gemini API Key for TTS and Translation (get from https://makersuite.google.com/app/apikey)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+# Initialize Google GenAI client if API key exists
+genai_client = None
+if GEMINI_API_KEY:
+    try:
+        from google import genai
+        genai_client = genai.Client(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        print(f"Warning: Could not initialize GenAI client: {e}")
 
 
 def generate_mock_course(topic: str) -> dict:
@@ -493,8 +503,8 @@ async def get_youtube_embed_url(video_id: str):
 @app.post("/api/tts/synthesize")
 async def synthesize_speech(request: dict):
     """
-    Convert text to speech.
-    Returns text for browser-based SpeechSynthesis (works without API key).
+    Convert text to speech using Google Gemini 2.5 Flash Preview TTS model.
+    Supports multiple languages including English and Hindi.
     
     Request body:
     {
@@ -508,13 +518,95 @@ async def synthesize_speech(request: dict):
     if not text:
         raise HTTPException(status_code=400, detail="Text is required")
     
-    # Return text for browser TTS (most reliable, no API key needed)
-    return {
-        "text": text,
-        "language": language,
-        "useBrowserTTS": True,
-        "message": "Use browser SpeechSynthesis API"
-    }
+    # If no API key or client not initialized, fall back to browser TTS
+    if not GEMINI_API_KEY or not genai_client:
+        return {
+            "text": text,
+            "language": language,
+            "useBrowserTTS": True,
+            "isMock": True,
+            "message": "No API key - using browser SpeechSynthesis"
+        }
+    
+    try:
+        from google.genai import types
+        
+        # Map language codes to Gemini voice names
+        voice_map = {
+            "en-US": "Kore",      # English US - Female
+            "en-GB": "Puck",      # English UK - Male  
+            "en-IN": "Aoede",     # English India/Hinglish - Female
+            "hi-IN": "Charon",    # Hindi - Male
+        }
+        
+        voice_name = voice_map.get(language, "Kore")
+        
+        # Embed the language instruction in the content for proper generation
+        language_instruction = f"Read this text aloud in {language} with clear pronunciation:"
+        contents = f"{language_instruction} {text}"
+        
+        # Call Gemini 2.5 Flash Preview TTS model
+        response = genai_client.models.generate_content(
+            model="gemini-2.5-flash-preview-tts",
+            contents=contents,
+            config=types.GenerateContentConfig(
+                response_modalities=["AUDIO"],
+                speech_config=types.SpeechConfig(
+                    voice_config=types.VoiceConfig(
+                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                            voice_name=voice_name,
+                        )
+                    )
+                )
+            )
+        )
+        
+        # Extract audio data from response
+        if response and response.candidates and response.candidates[0].content.parts:
+            part = response.candidates[0].content.parts[0]
+            if hasattr(part, 'inline_data') and part.inline_data:
+                # Convert bytes to base64 string for JSON response
+                audio_data = part.inline_data.data
+                audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+                mime_type = part.inline_data.mime_type or "audio/wav"
+                
+                return {
+                    "audioContent": audio_base64,
+                    "mimeType": mime_type,
+                    "language": language,
+                    "voice": voice_name,
+                    "isMock": False,
+                    "useBrowserTTS": False,
+                    "model": "gemini-2.5-flash-preview-tts"
+                }
+        
+        # Fallback to browser TTS if no audio data
+        return {
+            "text": text,
+            "language": language,
+            "useBrowserTTS": True,
+            "isMock": True,
+            "message": "No audio data received - using browser SpeechSynthesis"
+        }
+        
+    except ImportError as e:
+        # google-genai package not installed
+        return {
+            "text": text,
+            "language": language,
+            "useBrowserTTS": True,
+            "isMock": True,
+            "fallbackReason": f"GenAI package not available: {str(e)}"
+        }
+    except Exception as e:
+        # Fall back to browser TTS on error
+        return {
+            "text": text,
+            "language": language,
+            "useBrowserTTS": True,
+            "isMock": True,
+            "fallbackReason": f"Gemini TTS error: {str(e)}"
+        }
 
 
 @app.post("/api/tts/translate")
