@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { api } from '../../utils/api';
+import { api } from '../utils/api';
 
 export default function LessonAudioPlayer({ lesson }) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -37,44 +37,50 @@ export default function LessonAudioPlayer({ lesson }) {
         language: lang
       });
 
-      if (response.data.isMock) {
-        // For demo mode, use browser's built-in TTS
-        if ('speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.lang = lang;
-          utterance.onend = () => setIsPlaying(false);
-          utterance.onerror = () => {
-            setIsPlaying(false);
-            setError('Speech synthesis failed');
-          };
-          
-          speechSynthesis.speak(utterance);
-          setIsPlaying(true);
-          setAudioUrl(null);
-        } else {
-          setError('Browser does not support text-to-speech');
-        }
-      } else if (response.data.audioContent) {
-        // Real TTS from API - convert base64 to blob
-        const audioData = response.data.audioContent;
-        const blob = new Blob([Uint8Array.from(atob(audioData), c => c.charCodeAt(0))], {
-          type: 'audio/mp3'
-        });
-        const url = URL.createObjectURL(blob);
-        setAudioUrl(url);
+      // Use browser SpeechSynthesis API
+      if ('speechSynthesis' in window) {
+        // Cancel any ongoing speech
+        speechSynthesis.cancel();
         
-        // Auto-play
-        setTimeout(() => {
-          if (audioRef.current) {
-            audioRef.current.play();
-            setIsPlaying(true);
-          }
-        }, 100);
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang;
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        
+        // Try to find a voice matching the language
+        const voices = speechSynthesis.getVoices();
+        const preferredVoice = voices.find(voice => 
+          voice.lang.startsWith(lang.split('-')[0])
+        );
+        if (preferredVoice) {
+          utterance.voice = preferredVoice;
+        }
+        
+        utterance.onstart = () => {
+          setIsPlaying(true);
+          setIsLoading(false);
+        };
+        
+        utterance.onend = () => {
+          setIsPlaying(false);
+        };
+        
+        utterance.onerror = (event) => {
+          setIsPlaying(false);
+          setIsLoading(false);
+          console.error('Speech synthesis error:', event);
+          setError('Speech synthesis failed. Please try again.');
+        };
+        
+        speechSynthesis.speak(utterance);
+      } else {
+        setError('Your browser does not support text-to-speech');
+        setIsLoading(false);
       }
     } catch (err) {
       console.error('Error synthesizing speech:', err);
       setError('Failed to generate audio. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };

@@ -493,8 +493,8 @@ async def get_youtube_embed_url(video_id: str):
 @app.post("/api/tts/synthesize")
 async def synthesize_speech(request: dict):
     """
-    Convert text to speech using Google Cloud TTS.
-    Supports multiple languages including English and Hindi.
+    Convert text to speech.
+    Returns text for browser-based SpeechSynthesis (works without API key).
     
     Request body:
     {
@@ -503,62 +503,18 @@ async def synthesize_speech(request: dict):
     }
     """
     text = request.get("text", "")
-    language = request.get("language", "en-US")  # Default to English
+    language = request.get("language", "en-US")
     
     if not text:
         raise HTTPException(status_code=400, detail="Text is required")
     
-    # If no API key, return mock audio URL
-    if not GEMINI_API_KEY:
-        # Return a demo audio file URL (using a placeholder)
-        return {
-            "audioContent": None,
-            "audioUrl": "https://docs.google.com/speech/tts?text=" + text[:100].replace(" ", "+"),
-            "language": language,
-            "isMock": True,
-            "message": "Demo mode: Add GEMINI_API_KEY for real TTS"
-        }
-    
-    try:
-        # Use Google Cloud TTS API via Gemini/Google AI
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"https://texttospeech.googleapis.com/v1/text:synthesize?key={GEMINI_API_KEY}",
-                json={
-                    "input": {"text": text},
-                    "voice": {
-                        "languageCode": language,
-                        "name": "en-IN-Standard-A" if language == "en-IN" else "en-US-Standard-A" if language == "en-US" else "hi-IN-Standard-A"
-                    },
-                    "audioConfig": {"audioEncoding": "MP3"}
-                },
-                timeout=30.0
-            )
-            
-            if response.status_code != 200:
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail="Failed to synthesize speech"
-                )
-            
-            data = response.json()
-            return {
-                "audioContent": data.get("audioContent"),
-                "audioUrl": None,
-                "language": language,
-                "isMock": False
-            }
-            
-    except httpx.HTTPError as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error synthesizing speech: {str(e)}"
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Unexpected error: {str(e)}"
-        )
+    # Return text for browser TTS (most reliable, no API key needed)
+    return {
+        "text": text,
+        "language": language,
+        "useBrowserTTS": True,
+        "message": "Use browser SpeechSynthesis API"
+    }
 
 
 @app.post("/api/tts/translate")
