@@ -132,6 +132,7 @@ class OpenRouterProvider(LLMProvider):
         # Models to try in priority order
         self.models = [
             "nvidia/nemotron-3-super-120b-a12b:free",  # Free with reasoning
+            "arcee-ai/trinity-large-preview:free",     # Free preview model
             "google/gemma-3-27b-it",
             "google/gemma-3-12b-it",
             "meta-llama/llama-3.3-70b-instruct:free",
