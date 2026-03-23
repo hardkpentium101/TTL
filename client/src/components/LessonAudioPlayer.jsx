@@ -39,76 +39,140 @@ export default function LessonAudioPlayer({ lesson }) {
       });
 
       const data = response.data;
+      console.log('TTS Response:', data);
 
       // Track if we're using Gemini TTS
-      setUsingGeminiTTS(!data.useBrowserTTS);
+      setUsingGeminiTTS(!data.useBrowserTTS && !!data.audioContent);
 
       // Check if we got real audio from Gemini TTS
       if (data.audioContent && !data.useBrowserTTS) {
-        // Convert base64 audio to blob and play
-        const audioData = data.audioContent;
-        const mimeType = data.mimeType || 'audio/wav';
+        console.log('Using Gemini TTS, audio length:', data.audioContent.length);
         
-        // Decode base64 to binary
-        const binaryString = atob(audioData);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        
-        const blob = new Blob([bytes], { type: mimeType });
-        const url = URL.createObjectURL(blob);
-        setAudioUrl(url);
-        
-        // Auto-play
-        setTimeout(() => {
-          if (audioRef.current) {
-            audioRef.current.play();
+        try {
+          // Convert base64 audio to ArrayBuffer
+          const audioData = data.audioContent;
+          const mimeType = data.mimeType || 'audio/wav';
+          
+          // Decode base64 to binary
+          const binaryString = atob(audioData);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          
+          console.log('Audio bytes created:', bytes.length);
+          
+          // For PCM audio (L16), use Web Audio API instead of HTML5 audio
+          if (mimeType.includes('L16') || mimeType.includes('pcm')) {
+            console.log('Using Web Audio API for PCM audio');
+            
+            // Parse PCM parameters from mime type: audio/L16;codec=pcm;rate=24000
+            const rateMatch = mimeType.match(/rate=(\d+)/);
+            const sampleRate = rateMatch ? parseInt(rateMatch[1]) : 24000;
+            
+            // Convert PCM bytes to AudioBuffer
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate });
+            const audioBuffer = audioContext.createBuffer(1, bytes.length / 2, sampleRate);
+            const channelData = audioBuffer.getChannelData(0);
+            
+            // Convert 16-bit PCM to float32 (-1.0 to 1.0)
+            const dataView = new DataView(bytes.buffer);
+            for (let i = 0; i < bytes.length / 2; i++) {
+              const sample = dataView.getInt16(i * 2, true); // little-endian
+              channelData[i] = sample / 32768.0; // Normalize to -1.0 to 1.0
+            }
+            
+            // Play the audio
+            const source = audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(audioContext.destination);
+            
+            source.onended = () => {
+              setIsPlaying(false);
+              setIsLoading(false);
+              audioContext.close();
+            };
+            
+            source.start(0);
             setIsPlaying(true);
             setIsLoading(false);
+            
+            // Store context for stopping
+            setAudioUrl(audioContext);
+          } else {
+            // For MP3/WAV, use HTML5 audio
+            const blob = new Blob([bytes], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            setAudioUrl(url);
+            console.log('Audio blob created, URL:', url);
+
+            // Auto-play
+            setTimeout(() => {
+              if (audioRef.current) {
+                audioRef.current.play();
+                setIsPlaying(true);
+                setIsLoading(false);
+              }
+            }, 100);
           }
-        }, 100);
-      } 
-      // Fallback to browser SpeechSynthesis
-      else if ('speechSynthesis' in window) {
-        // Cancel any ongoing speech
-        speechSynthesis.cancel();
-
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = lang;
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-
-        // Try to find a voice matching the language
-        const voices = speechSynthesis.getVoices();
-        const preferredVoice = voices.find(voice =>
-          voice.lang.startsWith(lang.split('-')[0])
-        );
-        if (preferredVoice) {
-          utterance.voice = preferredVoice;
+        } catch (err) {
+          console.error('Error playing audio:', err);
+          setError('Failed to play audio: ' + err.message);
+          setIsLoading(false);
+          // Fallback to browser TTS
+          if ('speechSynthesis' in window) {
+            speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang;
+            speechSynthesis.speak(utterance);
+            setIsPlaying(true);
+          }
         }
+      }
+      // Fallback to browser SpeechSynthesis
+      else {
+        console.log('Fallback to browser TTS, useBrowserTTS:', data.useBrowserTTS, 'hasAudio:', !!data.audioContent);
+        
+        if ('speechSynthesis' in window) {
+          // Cancel any ongoing speech
+          speechSynthesis.cancel();
 
-        utterance.onstart = () => {
-          setIsPlaying(true);
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = lang;
+          utterance.rate = 1.0;
+          utterance.pitch = 1.0;
+          utterance.volume = 1.0;
+
+          // Try to find a voice matching the language
+          const voices = speechSynthesis.getVoices();
+          const preferredVoice = voices.find(voice =>
+            voice.lang.startsWith(lang.split('-')[0])
+          );
+          if (preferredVoice) {
+            utterance.voice = preferredVoice;
+          }
+
+          utterance.onstart = () => {
+            setIsPlaying(true);
+            setIsLoading(false);
+          };
+
+          utterance.onend = () => {
+            setIsPlaying(false);
+          };
+
+          utterance.onerror = (event) => {
+            setIsPlaying(false);
+            setIsLoading(false);
+            console.error('Speech synthesis error:', event);
+            setError('Speech synthesis failed. Please try again.');
+          };
+
+          speechSynthesis.speak(utterance);
+        } else {
+          setError('Your browser does not support text-to-speech');
           setIsLoading(false);
-        };
-
-        utterance.onend = () => {
-          setIsPlaying(false);
-        };
-
-        utterance.onerror = (event) => {
-          setIsPlaying(false);
-          setIsLoading(false);
-          console.error('Speech synthesis error:', event);
-          setError('Speech synthesis failed. Please try again.');
-        };
-
-        speechSynthesis.speak(utterance);
-      } else {
-        setError('Your browser does not support text-to-speech');
-        setIsLoading(false);
+        }
       }
     } catch (err) {
       console.error('Error synthesizing speech:', err);
@@ -137,11 +201,20 @@ export default function LessonAudioPlayer({ lesson }) {
   };
 
   const handleStop = () => {
-    if (audioRef.current) {
+    // Stop Web Audio API playback
+    if (audioUrl && typeof audioUrl === 'object' && audioUrl.close) {
+      audioUrl.close();
+      setAudioUrl(null);
+      setIsPlaying(false);
+    }
+    // Stop HTML5 audio
+    else if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
       setIsPlaying(false);
-    } else if ('speechSynthesis' in window) {
+    }
+    // Stop browser speech synthesis
+    else if ('speechSynthesis' in window) {
       speechSynthesis.cancel();
       setIsPlaying(false);
     }
@@ -158,7 +231,8 @@ export default function LessonAudioPlayer({ lesson }) {
   useEffect(() => {
     return () => {
       handleStop();
-      if (audioUrl) {
+      // Clean up blob URL if it's a string
+      if (audioUrl && typeof audioUrl === 'string') {
         URL.revokeObjectURL(audioUrl);
       }
     };
