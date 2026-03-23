@@ -2,10 +2,11 @@
 Text-to-Learn: AI-Powered Course Generator
 FastAPI Backend
 """
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
+import httpx
 
 load_dotenv()
 
@@ -19,6 +20,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# YouTube API Key (get from https://console.cloud.google.com/)
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 
 
 def generate_mock_course(topic: str) -> dict:
@@ -398,10 +402,10 @@ async def health_check():
 async def generate_course(request: dict):
     """Generate a complete course structure from a topic prompt."""
     topic = request.get("topic", "").strip()
-    
+
     if not topic:
         raise HTTPException(status_code=400, detail="Topic cannot be empty")
-    
+
     try:
         # For now, return mock course
         # TODO: Integrate with AI API (Gemini/OpenAI)
@@ -409,6 +413,78 @@ async def generate_course(request: dict):
         return course
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating course: {str(e)}")
+
+
+@app.get("/api/youtube/search")
+async def search_youtube_videos(
+    q: str = Query(..., description="Search query for videos"),
+    maxResults: int = Query(3, description="Number of results to return")
+):
+    """Search YouTube videos using the YouTube Data API v3."""
+    if not YOUTUBE_API_KEY:
+        # Return mock data if no API key is set
+        return {
+            "items": [
+                {
+                    "id": {
+                        "videoId": "dQw4w9WgXcQ"
+                    },
+                    "snippet": {
+                        "title": f"Sample Video: {q}",
+                        "description": "This is a sample video. Add your YouTube API key to fetch real videos.",
+                        "thumbnails": {
+                            "medium": {
+                                "url": "https://via.placeholder.com/320x180?text=Add+YouTube+API+Key"
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://www.googleapis.com/youtube/v3/search",
+                params={
+                    "part": "snippet",
+                    "q": q,
+                    "type": "video",
+                    "videoEmbeddable": "true",
+                    "maxResults": min(maxResults, 10),  # Max 10 results
+                    "key": YOUTUBE_API_KEY
+                },
+                timeout=10.0
+            )
+            
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail="Failed to fetch videos from YouTube"
+                )
+            
+            data = response.json()
+            return {"items": data.get("items", [])}
+            
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching YouTube videos: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error: {str(e)}"
+        )
+
+
+@app.get("/api/youtube/embed/{video_id}")
+async def get_youtube_embed_url(video_id: str):
+    """Get the embed URL for a YouTube video."""
+    return {
+        "embedUrl": f"https://www.youtube.com/embed/{video_id}",
+        "watchUrl": f"https://www.youtube.com/watch?v={video_id}"
+    }
 
 
 if __name__ == "__main__":

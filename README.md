@@ -67,7 +67,7 @@ hackathon/
 - **Rich Lesson Content**: 
   - Headings & Paragraphs
   - Code blocks with syntax highlighting
-  - Video placeholders (YouTube API integration ready)
+  - **YouTube Video Integration** - Fetches relevant educational videos
   - Interactive MCQs with explanations
   - Lists & External Links
 - **Module Navigation**: Browse through modules and lessons
@@ -95,7 +95,6 @@ curl -X POST http://localhost:5000/api/generate-course \
 - [ ] AI Integration (Gemini/OpenAI) for real course generation
 - [ ] Auth0 Authentication
 - [ ] MongoDB Database for persistence
-- [ ] YouTube API for video embedding
 - [ ] Multilingual Support (Hinglish TTS)
 - [ ] Deployment (Render + Vercel)
 
@@ -106,7 +105,8 @@ curl -X POST http://localhost:5000/api/generate-course \
 - [x] Lesson Renderer with multiple content block types
 - [x] Interactive MCQs with feedback
 - [x] Course/module/lesson navigation
-- [x] **PDF Export** - Download lessons as formatted PDFs
+- [x] PDF Export - Download lessons as formatted PDFs
+- [x] **YouTube Integration** - Search and embed educational videos
 
 ## 🛠 Tech Stack
 
@@ -127,3 +127,22 @@ This is a **simplified MVP** to test the core functionality:
 - Currently uses **mock data** for course generation
 - Replace `generate_mock_course()` in `server/main.py` with actual AI API calls
 - Add your API keys in `.env` file (see `.env.example`)
+
+## 🔑 API Key Setup
+
+### YouTube Data API (for video integration)
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing
+3. Enable **YouTube Data API v3**
+4. Go to **Credentials** → **Create Credentials** → **API Key**
+5. Copy the API key to `server/.env`:
+   ```
+   YOUTUBE_API_KEY=your_api_key_here
+   ```
+6. (Optional) Restrict the API key to YouTube Data API only
+
+**Note:** Without an API key, the app shows demo/placeholder videos.
+
+### AI APIs (for future course generation)
+- **Google Gemini**: Get key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+- **OpenAI**: Get key from [OpenAI Platform](https://platform.openai.com/api-keys)
