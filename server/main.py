@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import os
 import httpx
 import base64
+import json
 
 load_dotenv()
 
@@ -25,7 +26,7 @@ app.add_middleware(
 # YouTube API Key (get from https://console.cloud.google.com/)
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 
-# Google Gemini API Key for TTS and Translation (get from https://makersuite.google.com/app/apikey)
+# Google Gemini API Key for TTS and Course Generation
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 # Initialize Google GenAI client if API key exists
@@ -34,6 +35,7 @@ if GEMINI_API_KEY:
     try:
         from google import genai
         genai_client = genai.Client(api_key=GEMINI_API_KEY)
+        print("✓ GenAI client initialized")
     except Exception as e:
         print(f"Warning: Could not initialize GenAI client: {e}")
 
@@ -413,19 +415,159 @@ async def health_check():
 
 @app.post("/api/generate-course")
 async def generate_course(request: dict):
-    """Generate a complete course structure from a topic prompt."""
+    """
+    Generate a complete course structure from a topic prompt using Gemma models.
+    Models: Gemma 3 27B (primary), 12B, 4B, 1B (fallbacks)
+    """
     topic = request.get("topic", "").strip()
 
     if not topic:
         raise HTTPException(status_code=400, detail="Topic cannot be empty")
 
-    try:
-        # For now, return mock course
-        # TODO: Integrate with AI API (Gemini/OpenAI)
+    # If no API key or client, use mock data
+    if not GEMINI_API_KEY or not genai_client:
         course = generate_mock_course(topic)
+        course["_mock"] = True
+        course["_message"] = "No API key - using mock course data"
         return course
+
+    try:
+        from google.genai import types
+        
+        # Course generation prompt
+        prompt = f"""
+You are an expert instructional designer and curriculum architect.
+
+Your task is to generate a structured, high-quality learning course from a user-provided topic.
+
+INPUT:
+Topic: {topic}
+Target Audience: Beginner
+Tone: Clear, engaging, and educational
+
+OUTPUT REQUIREMENTS:
+Return ONLY valid JSON. No explanations, no markdown, no extra text.
+
+The JSON must strictly follow this schema:
+{{
+  "course": {{
+    "title": "string",
+    "description": "string",
+    "metadata": {{
+      "level": "Beginner | Intermediate | Advanced",
+      "estimated_duration": "string",
+      "prerequisites": ["string"]
+    }},
+    "modules": [
+      {{
+        "id": "module-1",
+        "title": "string",
+        "description": "string",
+        "lessons": [
+          {{
+            "id": "lesson-1",
+            "title": "string",
+            "objectives": ["string"],
+            "key_topics": ["string"],
+            "content": [
+              {{"type": "heading", "text": "string"}},
+              {{"type": "paragraph", "text": "string"}},
+              {{"type": "list", "items": ["string"]}},
+              {{"type": "link", "text": "string", "url": "string"}}
+            ],
+            "resources": [
+              {{"title": "string", "url": "string"}}
+            ]
+          }}
+        ]
+      }}
+    ]
+  }}
+}}
+
+CONTENT RULES:
+1. Generate 3-6 modules, each with 3-5 lessons
+2. Each lesson: 3-5 objectives, 4-6 key topics
+3. Content must include: headings, paragraphs, at least 1 list, at least 1 external link
+4. Links must start with https://
+5. No HTML, no markdown, only valid JSON
+6. Progressive difficulty across modules
+
+NOW GENERATE THE COURSE. Return ONLY the JSON.
+"""
+
+        # Gemma model priority: 27B → 12B → 4B → 1B
+        gemma_models = [
+            "gemma-3-27b",   # Primary - best quality
+            "gemma-3-12b",   # Fallback 1
+            "gemma-3-4b",    # Fallback 2
+            "gemma-3-1b"     # Fallback 3 - fastest
+        ]
+        
+        for model_name in gemma_models:
+            try:
+                print(f"[Course Gen] Trying {model_name}...")
+                
+                response = genai_client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=0.7,
+                        top_p=0.9,
+                        max_output_tokens=8192,
+                    )
+                )
+                
+                # Extract and parse JSON from response
+                if response and response.text:
+                    text = response.text.strip()
+                    
+                    # Remove markdown code blocks if present
+                    if text.startswith("```"):
+                        text = text.split("```")[1]
+                        if text.startswith("json"):
+                            text = text[4:]
+                    text = text.strip()
+                    
+                    # Parse JSON
+                    try:
+                        course_data = json.loads(text)
+                        print(f"[Course Gen] ✓ Successfully generated with {model_name}")
+                        
+                        # Validate structure
+                        if "course" in course_data:
+                            return {
+                                "_model": model_name,
+                                "_ai_generated": True,
+                                **course_data
+                            }
+                        else:
+                            print(f"[Course Gen] {model_name} returned invalid structure")
+                            continue
+                            
+                    except json.JSONDecodeError as e:
+                        print(f"[Course Gen] {model_name} returned invalid JSON: {str(e)[:100]}")
+                        continue
+                else:
+                    print(f"[Course Gen] {model_name} returned empty response")
+                    
+            except Exception as model_error:
+                print(f"[Course Gen] {model_name} failed: {str(model_error)[:100]}")
+                continue
+        
+        # All models failed, use mock data
+        print("[Course Gen] All Gemma models failed, using mock data")
+        course = generate_mock_course(topic)
+        course["_mock"] = True
+        course["_message"] = "All Gemma models failed - using mock data"
+        return course
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating course: {str(e)}")
+        print(f"[Course Gen] Unexpected error: {str(e)}")
+        course = generate_mock_course(topic)
+        course["_mock"] = True
+        course["_error"] = str(e)
+        return course
 
 
 @app.get("/api/youtube/search")
