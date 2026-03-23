@@ -329,8 +329,60 @@ class LLMManager:
         """
         if not self.provider:
             return None
+
+        course_data = self.provider.generate_course(topic, level)
         
-        return self.provider.generate_course(topic, level)
+        # Add video blocks to each lesson after generation
+        if course_data:
+            course_data = self._add_video_blocks(course_data, topic)
+        
+        return course_data
+    
+    def _add_video_blocks(self, course_data: Dict[str, Any], topic: str) -> Dict[str, Any]:
+        """Add video search blocks to each lesson based on key topics."""
+        if "course" not in course_data:
+            return course_data
+        
+        course = course_data["course"]
+        
+        for module in course.get("modules", []):
+            for lesson in module.get("lessons", []):
+                # Generate video search queries from lesson title and key topics
+                video_queries = []
+                
+                # Add lesson title as a video query
+                lesson_title = lesson.get("title", "")
+                if lesson_title:
+                    video_queries.append(f"{lesson_title} tutorial")
+                
+                # Add key topics as video queries (top 3)
+                key_topics = lesson.get("key_topics", [])[:3]
+                for topic_item in key_topics:
+                    video_queries.append(f"{topic_item} explained")
+                
+                # Create video blocks (4 videos per lesson, 2x2 grid)
+                video_blocks = []
+                for i, query in enumerate(video_queries[:4]):
+                    video_blocks.append({
+                        "type": "video",
+                        "query": query.strip(),
+                        "id": f"video-{lesson.get('id', 'unknown')}-{i}"
+                    })
+                
+                # Ensure we have exactly 4 videos
+                while len(video_blocks) < 4:
+                    video_blocks.append({
+                        "type": "video",
+                        "query": f"{topic} {lesson_title} examples".strip(),
+                        "id": f"video-{lesson.get('id', 'unknown')}-{len(video_blocks)}"
+                    })
+                
+                # Add video blocks at the end of lesson content
+                if "content" not in lesson:
+                    lesson["content"] = []
+                lesson["content"].extend(video_blocks)
+        
+        return course_data
     
     @classmethod
     def get_available_providers(cls) -> List[str]:

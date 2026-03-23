@@ -115,7 +115,7 @@ export default function VideoBlock({ query }) {
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
               More videos:
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {videos.map((video, index) => (
                 <button
                   key={getVideoId(video)}
@@ -145,13 +145,6 @@ export default function VideoBlock({ query }) {
           <div className="mt-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
             {error}
           </div>
-        )}
-
-        {/* API Key Notice */}
-        {!selectedVideo && !loading && (
-          <p className="mt-4 text-xs text-gray-500 dark:text-gray-400 text-center">
-            💡 Add your YouTube API key to fetch real videos. Currently showing demo mode.
-          </p>
         )}
       </div>
     </div>
