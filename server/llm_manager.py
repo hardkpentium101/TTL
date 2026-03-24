@@ -155,13 +155,11 @@ class OpenRouterProvider(LLMProvider):
     def __init__(self, api_key: str):
         super().__init__(api_key)
         self.base_url = "https://openrouter.ai/api/v1"
-        # Models to try in priority order (fastest first)
+        # Models to try in priority order (tested & working)
         self.models = [
-            "meta-llama/llama-3.2-3b-instruct:free",      # Fastest - small model
-            "qwen/qwen-2.5-7b-instruct:free",             # Fast - good quality
-            "stepfun/step-3.5-flash:free",                # Medium - accurate
-            "arcee-ai/trinity-large-preview:free",        # Slower - high quality
-            "nvidia/nemotron-3-super-120b-a12b:free",     # Slowest - reasoning
+            "stepfun/step-3.5-flash:free",              # Fastest working (~27s)
+            "arcee-ai/trinity-large-preview:free",      # Good quality (~41s)
+            "nvidia/nemotron-3-super-120b-a12b:free",   # Best reasoning (~40s)
         ]
     
     def generate_course(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
