@@ -11,7 +11,7 @@ function AppLayout() {
       <Sidebar />
       
       {/* Main Content Area */}
-      <main className="lg:ml-64 transition-all duration-300">
+      <main className="lg:ml-20 transition-all duration-100">
         {/* Top Navigation Bar */}
         <nav className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 h-16 flex items-center px-6">
           <div className="flex-1"></div>

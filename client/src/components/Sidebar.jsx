@@ -18,10 +18,10 @@ export default function Sidebar() {
   // Handle responsive behavior
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 1024) {
+      if (window.innerWidth < 768) {
         setIsCollapsed(true);
       } else {
-        setIsCollapsed(false);
+        setIsCollapsed(true);
       }
     };
     
@@ -84,7 +84,10 @@ export default function Sidebar() {
   const isExpanded = !isCollapsed || isHovered;
 
   const handleNavClick = (item, e) => {
-    if (item.hasSubmenu && isCollapsed) {
+    if (item.hasSubmenu && !isExpanded) {
+      e.preventDefault();
+      setMyCoursesOpen(!myCoursesOpen);
+    } else if (item.hasSubmenu && isExpanded) {
       e.preventDefault();
       setMyCoursesOpen(!myCoursesOpen);
     }
@@ -100,7 +103,7 @@ export default function Sidebar() {
       {/* Mobile menu button */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="lg:hidden fixed top-4 left-4 z-50 bg-white dark:bg-gray-800 p-2 rounded-lg shadow-md border border-gray-200 dark:border-gray-700"
+        className="md:hidden fixed top-4 left-4 z-50 bg-white dark:bg-gray-800 p-2 rounded-lg shadow-md border border-gray-200 dark:border-gray-700"
         aria-label="Toggle menu"
       >
         <svg className="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,30 +114,32 @@ export default function Sidebar() {
       {/* Overlay for mobile */}
       {!isCollapsed && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          className="md:hidden fixed inset-0 bg-black/50 z-40"
           onClick={() => setIsCollapsed(!isCollapsed)}
         />
       )}
 
+      {/* Fixed Logo Header - Always visible */}
+      <div className="fixed top-0 left-0 h-16 w-64 z-[60] flex items-center px-4">
+        <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <span className="text-3xl w-8 h-8 ml-2 flex-shrink-0 flex items-center justify-center">📚</span>
+          <span className="font-bold text-xl ml-5 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent whitespace-nowrap">
+            Text-to-Learn
+          </span>
+        </Link>
+      </div>
+
       {/* Sidebar */}
-      <aside
-        className={`fixed top-0 left-0 h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 z-50 ${
-          isExpanded ? 'w-64' : 'w-20'
-        }`}
-        onMouseEnter={() => !isCollapsed && setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
-        {/* Logo Section - Icon when collapsed, Name when expanded */}
-        <div className="h-16 flex items-center justify-center border-b border-gray-200 dark:border-gray-700">
-          <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <span className="text-2xl flex-shrink-0">📚</span>
-            {isExpanded && (
-              <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent whitespace-nowrap">
-                Text-to-Learn
-              </span>
-            )}
-          </Link>
-        </div>
+      <div className="relative">
+        <aside
+          className={`fixed top-0 left-0 h-full bg-black/30 backdrop-blur-xl dark:bg-black/30 transition-all duration-100 z-50 ${
+            isExpanded ? 'w-64' : 'w-20'
+          }`}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+        {/* Logo Section - Hidden, logo is in fixed header above */}
+        <div className="h-16 border-b border-gray-200 dark:border-gray-700"></div>
 
         {/* Navigation Links */}
         <nav className="p-4 space-y-2">
@@ -212,6 +217,7 @@ export default function Sidebar() {
           </div>
         </div>
       </aside>
+      </div>
     </>
   );
 }
