@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 export const refreshCoursesEvent = new EventTarget();
 
 export default function Sidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
   const [myCoursesOpen, setMyCoursesOpen] = useState(false);
   const [userCourses, setUserCourses] = useState([]);
@@ -16,7 +16,7 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const { isAuthenticated, user, login, logout, isLoading } = useAuth();
 
-  // Sidebar expands on hover
+  // Sidebar expands on hover (desktop) or toggle (mobile)
   const isExpanded = !isCollapsed || isHovered;
 
   // Fetch user's courses when authenticated or refresh triggered
@@ -65,16 +65,14 @@ export default function Sidebar() {
     return () => refreshCoursesEvent.removeEventListener('refresh', handleRefresh);
   }, []);
 
-  // Handle responsive behavior
+  // Handle responsive behavior - collapsed by default, expand on hover (desktop)
   useEffect(() => {
     const handleResize = () => {
-      // Auto-collapse on mobile, expand on desktop
       if (window.innerWidth < 768) {
         setIsCollapsed(true);
       }
     };
 
-    // Set initial state
     handleResize();
 
     window.addEventListener('resize', handleResize);
@@ -182,20 +180,20 @@ export default function Sidebar() {
         />
       )}
 
-      {/* Sidebar - Collapsed by default, expands on hover (both mobile and desktop) */}
+      {/* Sidebar - Fixed width on desktop (w-20 = 80px), expands on hover (w-64 = 256px) */}
       <aside
-        className={`flex flex-col h-screen bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl transition-all duration-300 fixed md:static top-0 left-0 z-50 md:z-auto ${
-          isCollapsed ? '-translate-x-full md:translate-x-0 md:w-20' : 'translate-x-0 w-64'
+        className={`hidden md:flex flex-col h-screen bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl transition-all duration-300 ${
+          isExpanded ? 'w-64' : 'w-20'
         }`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
         {/* Logo Section */}
-        <div className="h-16 flex items-center px-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 overflow-hidden">
+        <div className="h-16 flex items-center px-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 overflow-hidden">
           <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <span className="text-3xl w-8 h-8 flex-shrink-0 flex items-center justify-center">📚</span>
-            <span className={`font-bold text-xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent whitespace-nowrap transition-opacity duration-300 ${
-              isExpanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
+            <span className={`font-bold text-xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent whitespace-nowrap transition-all duration-300 overflow-hidden ${
+              isExpanded ? 'opacity-100 max-w-xs' : 'opacity-0 max-w-0'
             }`}>
               Text-to-Learn
             </span>
@@ -217,21 +215,11 @@ export default function Sidebar() {
                 } ${item.hasSubmenu ? 'cursor-pointer' : ''}`}
               >
                 <span className="w-5 h-5 flex-shrink-0">{item.icon}</span>
-                <span className={`font-medium whitespace-nowrap transition-all duration-300 ${
-                  isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0 overflow-hidden'
+                <span className={`font-medium whitespace-nowrap transition-all duration-300 overflow-hidden ${
+                  isExpanded ? 'opacity-100 max-w-xs' : 'opacity-0 max-w-0'
                 }`}>
                   {item.label}
                 </span>
-                {isExpanded && item.hasSubmenu && (
-                  <svg
-                    className={`w-4 h-4 ml-auto transition-transform ${myCoursesOpen ? 'rotate-180' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                )}
               </Link>
 
               {/* Submenu for My Courses */}
@@ -261,13 +249,19 @@ export default function Sidebar() {
         </nav>
 
         {/* User Section */}
-        <div className="p-2.5 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <div className="p-2 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
           {isLoading ? (
-            <div className={`flex ${isExpanded ? 'gap-2' : 'justify-center'}`}>
-              <div className="w-8 h-8 rounded-full bg-gray-600 animate-pulse"></div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-gray-600 animate-pulse flex-shrink-0"></div>
+              {isExpanded && (
+                <div className="flex-1">
+                  <div className="h-3 bg-gray-600 rounded w-20 mb-1 animate-pulse"></div>
+                  <div className="h-2 bg-gray-600 rounded w-12 animate-pulse"></div>
+                </div>
+              )}
             </div>
           ) : isAuthenticated && user ? (
-            <div className={`flex ${isExpanded ? 'gap-2' : 'justify-center'}`}>
+            <div className="flex items-center gap-2">
               <img
                 src={user.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=6366f1&color=fff&size=40`}
                 alt={user.name || 'User'}
@@ -278,14 +272,14 @@ export default function Sidebar() {
               />
               {isExpanded && (
                 <div className="flex-1 min-w-0 overflow-hidden">
-                  <p className="font-medium text-sm text-gray-200 truncate">{user.name}</p>
-                  <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                  <p className="font-medium text-sm text-gray-800 dark:text-gray-200 truncate">{user.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
                 </div>
               )}
               {isExpanded && (
                 <button
                   onClick={() => logout()}
-                  className="text-gray-400 hover:text-red-400 transition-colors"
+                  className="text-gray-500 hover:text-red-400 transition-colors ml-auto"
                   title="Logout"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -298,7 +292,7 @@ export default function Sidebar() {
             <button
               onClick={() => login()}
               className={`w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium rounded-lg transition-all ${
-                isExpanded ? 'py-2 px-4' : 'p-2'
+                isExpanded ? 'py-2 px-4' : 'py-2 px-3'
               }`}
             >
               {isExpanded ? 'Sign In' : '🔑'}

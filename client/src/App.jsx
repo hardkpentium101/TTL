@@ -36,7 +36,7 @@ function AppLayout() {
       </div>
 
       {/* Main Content Area - Flex column */}
-      <main className="flex-1 flex flex-col min-h-screen overscroll-none md:ml-20">
+      <main className="flex-1 flex flex-col min-h-screen overscroll-none md:ml-20 transition-all duration-300">
         {/* Top Navigation Bar - Fixed header with branding */}
         <nav className="fixed top-0 left-0 right-0 md:left-20 z-40 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-sm border-b border-gray-200 dark:border-gray-700 h-16 flex items-center px-4 md:px-6 flex-shrink-0">
           {/* Mobile Logo */}
