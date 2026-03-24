@@ -76,6 +76,7 @@ Tone: Clear, engaging, and educational
 
 OUTPUT REQUIREMENTS:
 Return ONLY valid JSON. No explanations, no markdown, no extra text.
+IMPORTANT: All property names MUST be in double quotes. Use strict JSON syntax.
 
 The JSON must strictly follow this schema:
 {{
@@ -120,12 +121,12 @@ CONTENT RULES:
 2. Each lesson: 3-5 objectives, 4-6 key topics
 3. Content must include:
    - headings
-   - paragraphs
+   - paragraphs  
    - at least 1 list
    - at least 1 external link (https://)
-   - **at least 1 video block with search query** (e.g., "Machine Learning basics tutorial")
-4. Video blocks should have relevant search queries for YouTube (e.g., "topic explained", "topic tutorial")
-5. No HTML, no markdown, only valid JSON
+   - at least 1 video block with YouTube search query
+4. Video query examples: "Python basics tutorial", "Machine Learning explained"
+5. Use STRICT JSON syntax - all keys in double quotes, no trailing commas
 6. Progressive difficulty across modules
 
 NOW GENERATE THE COURSE. Return ONLY the JSON.
