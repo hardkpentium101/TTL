@@ -10,18 +10,24 @@ const mockUserCourses = [
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const [myCoursesOpen, setMyCoursesOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Auto-collapse on mobile
+  // Handle responsive behavior
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 1024) {
         setIsCollapsed(true);
+      } else {
+        setIsCollapsed(false);
       }
     };
+    
+    // Set initial state
     handleResize();
+    
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -74,6 +80,9 @@ export default function Sidebar() {
 
   const isActive = (path) => location.pathname === path;
 
+  // Determine if sidebar should be expanded (either not collapsed or being hovered)
+  const isExpanded = !isCollapsed || isHovered;
+
   const handleNavClick = (item, e) => {
     if (item.hasSubmenu && isCollapsed) {
       e.preventDefault();
@@ -103,22 +112,24 @@ export default function Sidebar() {
       {!isCollapsed && (
         <div
           className="lg:hidden fixed inset-0 bg-black/50 z-40"
-          onClick={() => setIsCollapsed(true)}
+          onClick={() => setIsCollapsed(!isCollapsed)}
         />
       )}
 
       {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 z-50 ${
-          isCollapsed ? 'w-20' : 'w-64'
+          isExpanded ? 'w-64' : 'w-20'
         }`}
+        onMouseEnter={() => !isCollapsed && setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
-        {/* Logo Section */}
+        {/* Logo Section - Icon when collapsed, Name when expanded */}
         <div className="h-16 flex items-center justify-center border-b border-gray-200 dark:border-gray-700">
           <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <span className="text-2xl">📚</span>
-            {!isCollapsed && (
-              <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <span className="text-2xl flex-shrink-0">📚</span>
+            {isExpanded && (
+              <span className="font-bold text-lg bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent whitespace-nowrap">
                 Text-to-Learn
               </span>
             )}
@@ -138,12 +149,12 @@ export default function Sidebar() {
                     ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                 } ${item.hasSubmenu ? 'cursor-pointer' : ''}`}
-                title={isCollapsed ? item.label : undefined}
+                title={!isExpanded ? item.label : undefined}
               >
                 <span className={isActive(item.path) ? 'text-white' : 'text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white'}>
                   {item.icon}
                 </span>
-                {!isCollapsed && (
+                {isExpanded && (
                   <>
                     <span className="font-medium flex-1">{item.label}</span>
                     {item.hasSubmenu && (
@@ -161,7 +172,7 @@ export default function Sidebar() {
               </Link>
 
               {/* Submenu for My Courses */}
-              {item.hasSubmenu && !isCollapsed && myCoursesOpen && (
+              {item.hasSubmenu && isExpanded && myCoursesOpen && (
                 <div className="ml-4 mt-2 space-y-1 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
                   {item.submenu.map((course) => (
                     <button
@@ -186,32 +197,13 @@ export default function Sidebar() {
           ))}
         </nav>
 
-        {/* Collapse/Expand button (desktop only) */}
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden lg:flex absolute bottom-4 left-1/2 -translate-x-1/2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          <svg
-            className={`w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform ${
-              isCollapsed ? 'rotate-180' : ''
-            }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-
         {/* User Section (placeholder for Auth0 integration - Milestone 4) */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700">
-          <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
+          <div className={`flex items-center gap-3 ${!isExpanded ? 'justify-center' : ''}`}>
             <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold flex-shrink-0">
               U
             </div>
-            {!isCollapsed && (
+            {isExpanded && (
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-800 dark:text-gray-200 text-sm truncate">User</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">user@example.com</p>
