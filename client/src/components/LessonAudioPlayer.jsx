@@ -324,7 +324,7 @@ export default function LessonAudioPlayer({ lesson }) {
                   key={i}
                   className="w-1 bg-indigo-500 rounded-full animate-pulse"
                   style={{
-                    height: `${Math.random() * 16 + 8}px`,
+                    height: `${[12, 20, 16, 24, 10][i]}px`,
                     animationDelay: `${i * 0.1}s`
                   }}
                 />

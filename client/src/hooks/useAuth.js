@@ -1,5 +1,5 @@
 import { useAuth0 } from '@auth0/auth0-react';
-import { api, getOrCreateUser } from '../utils/api';
+import { getOrCreateUser } from '../utils/api';
 
 /**
  * Custom hook for authentication

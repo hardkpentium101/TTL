@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generateCourseAsync, waitForCourse } from '../utils/api';
-import { refreshCoursesEvent } from '../components/Sidebar';
+import { refreshCoursesEvent } from '../events';
 
 export default function PromptForm() {
   const [topic, setTopic] = useState('');

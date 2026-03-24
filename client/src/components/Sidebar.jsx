@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getUserCourses } from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
-
-// Custom event for course refresh
-export const refreshCoursesEvent = new EventTarget();
+import { refreshCoursesEvent } from '../events';
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(true);
