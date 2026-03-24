@@ -9,12 +9,10 @@ export default function LessonPDFExporter({ lesson, courseTitle, moduleName }) {
     if (!printRef.current) return;
 
     try {
-      // Clone the element to avoid modifying the visible DOM
       const element = printRef.current;
       
-      // Create canvas with optimized settings
       const canvas = await html2canvas(element, {
-        scale: 1.5,
+        scale: 2,
         backgroundColor: '#ffffff',
         logging: false,
         useCORS: true,
@@ -23,7 +21,6 @@ export default function LessonPDFExporter({ lesson, courseTitle, moduleName }) {
         removeContainer: true,
       });
 
-      // Convert canvas to blob first to verify it's valid
       const blob = await new Promise((resolve) => {
         canvas.toBlob((blob) => {
           resolve(blob);
@@ -34,14 +31,12 @@ export default function LessonPDFExporter({ lesson, courseTitle, moduleName }) {
         throw new Error('Failed to create image blob');
       }
 
-      // Convert blob to data URL
       const imgData = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result);
         reader.readAsDataURL(blob);
       });
 
-      // Create PDF
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -51,73 +46,86 @@ export default function LessonPDFExporter({ lesson, courseTitle, moduleName }) {
 
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const margin = 10;
+      const margin = 15;
+      const pageCount = Math.ceil((canvas.height * (pdfWidth - margin * 2) / canvas.width) / (pdfHeight - 60));
+
+      // Header background
+      pdf.setFillColor(26, 35, 53);
+      pdf.rect(0, 0, pdfWidth, 35, 'F');
       
-      // Calculate image dimensions
-      const imgWidth = pdfWidth - (margin * 2);
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      // Add header
+      // Decorative line
+      pdf.setFillColor(99, 102, 241);
+      pdf.rect(0, 35, pdfWidth, 2, 'F');
+
+      // Course title
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(14);
-      pdf.setTextColor(40, 40, 40);
-      pdf.text(courseTitle || 'Course', margin, margin + 5);
+      pdf.setFontSize(22);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(courseTitle || 'Course', margin, 18);
+      
+      // Module name
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(11);
+      pdf.setTextColor(199, 210, 254);
+      pdf.text(moduleName || '', margin, 26);
+
+      // Lesson title on the right
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(12);
+      pdf.setTextColor(255, 255, 255);
+      const lessonTitle = lesson?.title || 'Lesson';
+      pdf.text(lessonTitle, pdfWidth - margin, 18, { align: 'right' });
       
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10);
-      pdf.setTextColor(100, 100, 100);
-      pdf.text(moduleName || '', margin, margin + 10);
-      
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(12);
-      pdf.setTextColor(40, 40, 40);
-      pdf.text(lesson?.title || 'Lesson', margin, margin + 15);
-      
-      // Add separator line
-      pdf.setDrawColor(200, 200, 200);
-      pdf.setLineWidth(0.5);
-      pdf.line(margin, margin + 18, pdfWidth - margin, margin + 18);
-      
-      // Add content image
-      const contentStartY = margin + 22;
-      let remainingHeight = imgHeight;
-      let positionY = contentStartY;
+      pdf.setTextColor(199, 210, 254);
+      pdf.text('Learning Material', pdfWidth - margin, 26, { align: 'right' });
+
+      const imgWidth = pdfWidth - (margin * 2);
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const contentStartY = 45;
       
       // First page
       if (imgHeight > pdfHeight - contentStartY - margin) {
-        // Content spans multiple pages
-        pdf.addImage(
-          imgData,
-          'PNG',
-          margin,
-          positionY,
-          imgWidth,
-          imgHeight,
-          undefined,
-          'FAST'
-        );
+        pdf.addImage(imgData, 'PNG', margin, contentStartY, imgWidth, imgHeight, undefined, 'FAST');
         
-        // Add pages as needed
-        while (remainingHeight > pdfHeight - contentStartY - margin) {
+        let remainingHeight = imgHeight;
+        let usedHeight = pdfHeight - contentStartY - margin;
+        
+        while (remainingHeight > usedHeight) {
           pdf.addPage();
-          remainingHeight -= (pdfHeight - contentStartY - margin);
-          positionY -= (pdfHeight - contentStartY - margin);
+          
+          // Header on continuation pages
+          pdf.setFillColor(26, 35, 53);
+          pdf.rect(0, 0, pdfWidth, 20, 'F');
+          pdf.setFillColor(99, 102, 241);
+          pdf.rect(0, 20, pdfWidth, 1, 'F');
+          
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(10);
+          pdf.setTextColor(255, 255, 255);
+          pdf.text(lessonTitle, margin, 14);
+          
+          remainingHeight -= usedHeight;
         }
       } else {
-        // Content fits on one page
-        pdf.addImage(
-          imgData,
-          'PNG',
-          margin,
-          positionY,
-          imgWidth,
-          imgHeight,
-          undefined,
-          'FAST'
-        );
+        pdf.addImage(imgData, 'PNG', margin, contentStartY, imgWidth, imgHeight, undefined, 'FAST');
       }
 
-      // Save the PDF
+      // Footer
+      const totalPages = pdf.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFillColor(248, 250, 252);
+        pdf.rect(0, pdfHeight - 12, pdfWidth, 12, 'F');
+        
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(8);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text('Generated by Text-to-Learn', margin, pdfHeight - 5);
+        pdf.text(`Page ${i} of ${totalPages}`, pdfWidth - margin, pdfHeight - 5, { align: 'right' });
+      }
+
       const fileName = `${lesson?.title || 'lesson'}.pdf`
         .replace(/[^a-z0-9]/gi, '_')
         .toLowerCase()
@@ -160,19 +168,37 @@ export default function LessonPDFExporter({ lesson, courseTitle, moduleName }) {
           ref={printRef}
           style={{
             backgroundColor: '#ffffff',
-            color: '#000000',
-            fontFamily: 'Arial, sans-serif',
+            color: '#1e293b',
+            fontFamily: '"Georgia", "Times New Roman", serif',
             width: '800px',
-            padding: '32px',
-            lineHeight: '1.6',
+            padding: '48px',
+            lineHeight: '1.8',
           }}
         >
           {lesson?.objectives && (
-            <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f0fdf4', borderLeft: '4px solid #22c55e', borderRadius: '0 4px 4px 0' }}>
-              <h4 style={{ fontWeight: 'bold', color: '#166534', marginBottom: '8px', fontSize: '16px', margin: '0 0 8px 0' }}>Learning Objectives</h4>
-              <ul style={{ listStyle: 'disc', paddingLeft: '20px', margin: 0 }}>
+            <div style={{ 
+              marginBottom: '32px', 
+              padding: '24px', 
+              backgroundColor: '#f8fafc', 
+              borderLeft: '4px solid #6366f1', 
+              borderRadius: '0 8px 8px 0',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+            }}>
+              <h4 style={{ 
+                fontWeight: 'bold', 
+                color: '#1e293b', 
+                marginBottom: '12px', 
+                fontSize: '18px',
+                fontFamily: '"Helvetica Neue", Arial, sans-serif',
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase'
+              }}>Learning Objectives</h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {lesson.objectives.map((obj, i) => (
-                  <li key={i} style={{ color: '#15803d', marginBottom: '4px' }}>{obj}</li>
+                  <li key={i} style={{ color: '#475569', marginBottom: '8px', display: 'flex', alignItems: 'flex-start' }}>
+                    <span style={{ color: '#6366f1', marginRight: '10px', fontSize: '14px' }}>◆</span>
+                    {obj}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -180,45 +206,102 @@ export default function LessonPDFExporter({ lesson, courseTitle, moduleName }) {
           
           <div>
             {lesson?.content?.map((block, index) => (
-              <div key={index} style={{ marginBottom: '16px' }}>
+              <div key={index} style={{ marginBottom: '20px' }}>
                 {block.type === 'heading' && (
-                  <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#111827', marginTop: '24px', marginBottom: '12px', margin: '24px 0 12px 0' }}>{block.text}</h2>
+                  <h2 style={{ 
+                    fontSize: '24px', 
+                    fontWeight: 'bold', 
+                    color: '#0f172a', 
+                    marginTop: '32px', 
+                    marginBottom: '16px',
+                    fontFamily: '"Helvetica Neue", Arial, sans-serif',
+                    borderBottom: '2px solid #e2e8f0',
+                    paddingBottom: '8px'
+                  }}>{block.text}</h2>
                 )}
                 
                 {block.type === 'paragraph' && (
-                  <p style={{ color: '#374151', lineHeight: '1.75', marginBottom: '16px', margin: '0 0 16px 0' }}>{block.text}</p>
+                  <p style={{ color: '#334155', lineHeight: '1.9', marginBottom: '20px', fontSize: '15px' }}>{block.text}</p>
                 )}
                 
                 {block.type === 'list' && (
-                  <ul style={{ listStyle: 'disc', paddingLeft: '20px', margin: '16px 0' }}>
+                  <ul style={{ listStyle: 'none', paddingLeft: '24px', margin: '20px 0' }}>
                     {block.items.map((item, i) => (
-                      <li key={i} style={{ color: '#374151', marginBottom: '8px' }}>{item}</li>
+                      <li key={i} style={{ color: '#334155', marginBottom: '12px', position: 'relative', paddingLeft: '20px' }}>
+                        <span style={{ 
+                          position: 'absolute', 
+                          left: 0, 
+                          color: '#6366f1', 
+                          fontSize: '10px',
+                          top: '6px'
+                        }}>●</span>
+                        {item}
+                      </li>
                     ))}
                   </ul>
                 )}
                 
                 {block.type === 'code' && (
-                  <div style={{ backgroundColor: '#1f2937', color: '#f9fafb', padding: '16px', borderRadius: '8px', fontFamily: 'Courier New, monospace', fontSize: '13px', whiteSpace: 'pre-wrap', margin: '16px 0', overflowX: 'auto' }}>
+                  <div style={{ 
+                    backgroundColor: '#1e293b', 
+                    color: '#e2e8f0', 
+                    padding: '20px', 
+                    borderRadius: '6px', 
+                    fontFamily: '"Fira Code", "Courier New", monospace', 
+                    fontSize: '13px', 
+                    whiteSpace: 'pre-wrap', 
+                    margin: '20px 0', 
+                    overflowX: 'auto',
+                    borderLeft: '3px solid #6366f1'
+                  }}>
                     {block.text}
                   </div>
                 )}
                 
                 {block.type === 'mcq' && (
-                  <div style={{ backgroundColor: '#faf5ff', borderLeft: '4px solid #a855f7', padding: '16px', margin: '16px 0', borderRadius: '0 8px 8px 0' }}>
-                    <p style={{ fontWeight: 'bold', color: '#581c87', marginBottom: '12px', margin: '0 0 12px 0' }}>Quiz: {block.question}</p>
-                    <div>
+                  <div style={{ 
+                    backgroundColor: '#faf5ff', 
+                    border: '1px solid #e9d5ff',
+                    borderLeft: '4px solid #a855f7', 
+                    padding: '20px', 
+                    margin: '24px 0', 
+                    borderRadius: '0 8px 8px 0',
+                    boxShadow: '0 2px 8px rgba(168, 85, 247, 0.1)'
+                  }}>
+                    <p style={{ 
+                      fontWeight: 'bold', 
+                      color: '#581c87', 
+                      marginBottom: '16px', 
+                      fontSize: '16px',
+                      fontFamily: '"Helvetica Neue", Arial, sans-serif'
+                    }}>Quiz: {block.question}</p>
+                    <div style={{ marginBottom: '16px' }}>
                       {block.options.map((option, i) => (
-                        <p key={i} style={{ color: '#6b21a8', marginBottom: '8px', margin: '0 0 8px 0' }}>
+                        <p key={i} style={{ 
+                          color: '#6b21a8', 
+                          marginBottom: '10px', 
+                          padding: '8px 12px',
+                          backgroundColor: i === block.answer ? '#f3e8ff' : 'transparent',
+                          borderRadius: '4px',
+                          border: i === block.answer ? '1px solid #c084fc' : '1px solid transparent'
+                        }}>
                           <span style={{ fontWeight: 'bold' }}>{String.fromCharCode(65 + i)}.</span> {option}
                         </p>
                       ))}
                     </div>
-                    <p style={{ marginTop: '12px', color: '#7e22ce', fontSize: '14px', margin: '12px 0 0 0' }}>
-                      <span style={{ fontWeight: 'bold' }}>Answer:</span> {block.options[block.answer]}
-                    </p>
-                    <p style={{ color: '#9333ea', fontSize: '13px', marginTop: '4px', margin: '4px 0 0 0' }}>
-                      <span style={{ fontWeight: 'bold' }}>Explanation:</span> {block.explanation}
-                    </p>
+                    <div style={{ 
+                      backgroundColor: '#f0fdf4', 
+                      padding: '12px', 
+                      borderRadius: '6px',
+                      border: '1px solid #bbf7d0'
+                    }}>
+                      <p style={{ marginBottom: '8px', color: '#166534', fontWeight: 'bold' }}>
+                        ✓ Answer: {block.options[block.answer]}
+                      </p>
+                      <p style={{ color: '#15803d', fontSize: '14px', margin: 0 }}>
+                        {block.explanation}
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -226,12 +309,28 @@ export default function LessonPDFExporter({ lesson, courseTitle, moduleName }) {
           </div>
           
           {lesson?.resources && lesson.resources.length > 0 && (
-            <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid #d1d5db' }}>
-              <h4 style={{ fontWeight: 'bold', color: '#111827', marginBottom: '12px', margin: '0 0 12px 0' }}>Additional Resources</h4>
+            <div style={{ 
+              marginTop: '40px', 
+              paddingTop: '24px', 
+              borderTop: '2px solid #e2e8f0',
+              backgroundColor: '#f8fafc',
+              padding: '24px',
+              borderRadius: '8px'
+            }}>
+              <h4 style={{ 
+                fontWeight: 'bold', 
+                color: '#1e293b', 
+                marginBottom: '16px', 
+                fontSize: '16px',
+                fontFamily: '"Helvetica Neue", Arial, sans-serif',
+                letterSpacing: '0.5px'
+              }}>Additional Resources</h4>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {lesson.resources.map((resource, i) => (
-                  <li key={i} style={{ color: '#2563eb', marginBottom: '8px', wordBreak: 'break-all' }}>
-                    📖 {resource.title}: {resource.url}
+                  <li key={i} style={{ color: '#6366f1', marginBottom: '12px', wordBreak: 'break-all', display: 'flex', alignItems: 'center' }}>
+                    <span style={{ marginRight: '8px', fontSize: '16px' }}>🔗</span> 
+                    <span style={{ color: '#1e293b', fontWeight: '500' }}>{resource.title}:</span>
+                    <span style={{ marginLeft: '4px', color: '#6366f1', textDecoration: 'underline' }}>{resource.url}</span>
                   </li>
                 ))}
               </ul>
