@@ -36,12 +36,17 @@ export default function CoursePage() {
     <div className="max-w-7xl mx-auto">
       {/* Course Header */}
       <div className="mb-8">
-        <button
-          onClick={() => navigate('/')}
-          className="text-blue-600 hover:text-blue-700 dark:text-blue-400 mb-4"
-        >
-          ← Back to Home
-        </button>
+        <div className="flex items-center gap-2 mb-4 text-sm">
+          <button
+            onClick={() => navigate('/')}
+            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline"
+          >
+            ← Back to Home
+          </button>
+          <span className="text-gray-400">/</span>
+          <span className="text-gray-600 dark:text-gray-400 truncate">{course.title}</span>
+        </div>
+        
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
           {course.title}
         </h1>
