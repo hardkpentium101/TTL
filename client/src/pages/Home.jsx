@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generateCourseAsync, waitForCourse } from '../utils/api';
+import { refreshCoursesEvent } from '../components/Sidebar';
 
 export default function PromptForm() {
   const [topic, setTopic] = useState('');
@@ -22,7 +23,7 @@ export default function PromptForm() {
     try {
       // Start async job
       const { job_id } = await generateCourseAsync(topic);
-      
+
       // Poll for completion with progress updates
       const course = await waitForCourse(
         job_id,
@@ -32,22 +33,25 @@ export default function PromptForm() {
         },
         20000  // Poll every 20 seconds
       );
-      
+
       setProgress(100);
       setStatusMessage('Course ready!');
+
+      // Refresh sidebar courses list
+      refreshCoursesEvent.dispatchEvent(new Event('refresh'));
 
       setTimeout(() => {
         // Handle both wrapped and direct course structures
         const courseData = course.course || course;
         const courseTitle = courseData.title || 'Generated Course';
-        
+
         console.log('Navigating with course:', courseData);
-        
+
         navigate(`/course/${encodeURIComponent(courseTitle)}`, {
           state: { course: courseData },
         });
       }, 500);
-      
+
     } catch (err) {
       console.error('Course generation error:', err);
       setError(err.response?.data?.detail || err.message || 'Failed to generate course');

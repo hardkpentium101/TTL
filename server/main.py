@@ -4,6 +4,7 @@ FastAPI Backend
 """
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import os
 import httpx
@@ -13,7 +14,29 @@ import asyncio
 
 load_dotenv()
 
-app = FastAPI(title="Text-to-Learn API")
+# ============= Lifespan Events =============
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup and shutdown events"""
+    # Startup
+    print("🚀 Starting Text-to-Learn API...")
+    
+    # Initialize database connection
+    from config.database import connect_to_database
+    db_connected = await connect_to_database()
+    
+    if not db_connected:
+        print("⚠️  Database not connected - running in mock mode")
+    
+    yield
+    
+    # Shutdown
+    print("👋 Shutting down Text-to-Learn API...")
+    from config.database import close_database_connection
+    await close_database_connection()
+
+
+app = FastAPI(title="Text-to-Learn API", lifespan=lifespan)
 
 # Enable CORS for frontend
 app.add_middleware(
@@ -24,6 +47,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ============= API Routes =============
+# Import and register route modules
+from routes.courses import router as courses_router
+
+app.include_router(courses_router)
+
+# ============= Existing Code =============
 # YouTube API Key (get from https://console.cloud.google.com/)
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 
@@ -421,109 +451,14 @@ async def health_check():
     return {"status": "ok", "service": "text-to-learn-backend"}
 
 
-@app.post("/api/generate-course")
-async def generate_course(request: dict):
-    """
-    Generate a complete course structure from a topic prompt.
-    Uses LLM Manager to route to OpenRouter or Gemini based on env config.
-    """
-    topic = request.get("topic", "").strip()
+# Note: Course generation endpoints moved to routes/courses.py
+# - POST /api/generate-course
+# - POST /api/generate-course-async
+# - GET /api/course-status/{job_id}
+# - GET /api/course-result/{job_id}
+# These now include Auth0 authentication and MongoDB persistence
 
-    if not topic:
-        raise HTTPException(status_code=400, detail="Topic cannot be empty")
-
-    try:
-        # Try AI generation via LLM Manager
-        course_data = llm.generate_course(topic, level="Beginner")
-        
-        if course_data:
-            return course_data
-        
-        # Fallback to mock data
-        print("[Course Gen] AI generation failed, using mock data")
-        course = generate_mock_course(topic)
-        course["_mock"] = True
-        course["_message"] = "AI generation failed - using mock data"
-        return course
-        
-    except Exception as e:
-        print(f"[Course Gen] Unexpected error: {str(e)}")
-        course = generate_mock_course(topic)
-        course["_mock"] = True
-        course["_error"] = str(e)
-        return course
-
-
-# ============= ASYNC COURSE GENERATION =============
-
-@app.post("/api/generate-course-async")
-async def generate_course_async_endpoint(request: dict, background_tasks: BackgroundTasks):
-    """
-    Generate course asynchronously (non-blocking).
-    Returns job_id immediately, poll /api/course-status/{job_id} for results.
-    """
-    topic = request.get("topic", "").strip()
-    level = request.get("level", "Beginner")
-    
-    if not topic:
-        raise HTTPException(status_code=400, detail="Topic cannot be empty")
-    
-    # Create task
-    job_id = task_queue.create_task(topic, level)
-    
-    # Start background task
-    background_tasks.add_task(generate_course_async, llm, topic, level, job_id)
-    
-    return {
-        "job_id": job_id,
-        "status": "pending",
-        "message": "Course generation started",
-        "status_url": f"/api/course-status/{job_id}",
-        "result_url": f"/api/course-result/{job_id}"
-    }
-
-
-@app.get("/api/course-status/{job_id}")
-async def get_course_status(job_id: str):
-    """Get task status without result."""
-    task = task_queue.get_task(job_id)
-    
-    if not task:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    return task
-
-
-@app.get("/api/course-result/{job_id}")
-async def get_course_result(job_id: str):
-    """Get course result if task is completed."""
-    task = task_queue.get_task(job_id)
-    
-    if not task:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    if task["status"] == "pending":
-        return {"status": "pending", "message": "Task is queued"}
-    
-    if task["status"] == "running":
-        return {
-            "status": "running",
-            "progress": task.get("progress", 0),
-            "message": task.get("message", "Generating course...")
-        }
-    
-    if task["status"] == "completed":
-        result = task_queue.get_result(job_id)
-        return {"status": "completed", "data": result}
-    
-    if task["status"] == "failed":
-        raise HTTPException(
-            status_code=500,
-            detail=task.get("message", "Task failed")
-        )
-    
-    raise HTTPException(status_code=404, detail="Unknown status")
-
+# ============= YouTube API =============
 
 @app.get("/api/youtube/search")
 async def search_youtube_videos(
@@ -551,7 +486,7 @@ async def search_youtube_videos(
                 }
             ]
         }
-    
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(

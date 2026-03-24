@@ -29,7 +29,9 @@ export default function LessonRenderer({ content }) {
           console.warn(`Unknown block type: ${block.type}`);
           return null;
         }
-        return <BlockComponent key={index} {...block} />;
+        // Create unique key based on block type and content
+        const uniqueKey = `${block.type}-${index}-${block.text || block.query || block.question || ''}`.slice(0, 50);
+        return <BlockComponent key={uniqueKey} {...block} />;
       })}
     </div>
   );

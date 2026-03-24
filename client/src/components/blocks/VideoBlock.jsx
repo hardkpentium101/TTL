@@ -1,29 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../../utils/api';
 
 export default function VideoBlock({ query }) {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [selectedVideo, setSelectedVideo] = useState(null);
+  const [selectedVideoIndex, setSelectedVideoIndex] = useState(0);
   const [error, setError] = useState('');
+
+  // Auto-search videos on mount when query changes
+  useEffect(() => {
+    if (query) {
+      searchVideos();
+    }
+    // Reset state when query changes
+    return () => {
+      setVideos([]);
+      setSelectedVideoIndex(0);
+    };
+  }, [query]);
 
   const searchVideos = async () => {
     if (!query) return;
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
       const response = await api.get('/api/youtube/search', {
-        params: { q: query, maxResults: 3 }
+        params: { q: query, maxResults: 8 }
       });
-      
+
       const videoItems = response.data.items || [];
       setVideos(videoItems);
-      
-      if (videoItems.length > 0) {
-        setSelectedVideo(videoItems[0]);
-      }
+      setSelectedVideoIndex(0);
     } catch (err) {
       console.error('Error fetching videos:', err);
       setError('Failed to load videos. Please try again.');
@@ -32,13 +41,36 @@ export default function VideoBlock({ query }) {
     }
   };
 
-  const handleVideoSelect = (video) => {
-    setSelectedVideo(video);
-  };
-
   const getVideoId = (video) => {
     return video?.id?.videoId;
   };
+
+  if (loading) {
+    return (
+      <div className="my-6">
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg p-5 border border-blue-200 dark:border-blue-800">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-2xl">📹</span>
+            <div>
+              <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                Video Resource
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-400">
+                {query}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center justify-center py-12">
+            <svg className="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <span className="ml-3 text-gray-600 dark:text-gray-400">Loading videos...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="my-6">
@@ -55,28 +87,57 @@ export default function VideoBlock({ query }) {
           </div>
         </div>
 
-        {selectedVideo ? (
+        {videos.length > 0 ? (
           <div className="space-y-4">
-            {/* Video Player */}
+            {/* Main Video Player */}
             <div className="aspect-video bg-black rounded-lg overflow-hidden">
               <iframe
-                src={`https://www.youtube.com/embed/${getVideoId(selectedVideo)}`}
-                title={selectedVideo?.snippet?.title}
+                src={`https://www.youtube.com/embed/${getVideoId(videos[selectedVideoIndex])}`}
+                title={videos[selectedVideoIndex]?.snippet?.title}
                 className="w-full h-full"
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
               />
             </div>
-            
+
             {/* Video Info */}
             <div>
               <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
-                {selectedVideo?.snippet?.title}
+                {videos[selectedVideoIndex]?.snippet?.title}
               </h4>
               <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                {selectedVideo?.snippet?.description}
+                {videos[selectedVideoIndex]?.snippet?.description}
               </p>
+            </div>
+
+            {/* Horizontal Scroll Video Thumbnails */}
+            <div className="mt-4">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                More videos:
+              </p>
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
+                {videos.map((video, index) => (
+                  <button
+                    key={getVideoId(video)}
+                    onClick={() => setSelectedVideoIndex(index)}
+                    className={`flex-shrink-0 flex gap-2 p-2 rounded-lg transition-all text-left w-48 ${
+                      selectedVideoIndex === index
+                        ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-500'
+                        : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <img
+                      src={video?.snippet?.thumbnails?.medium?.url}
+                      alt={video?.snippet?.title}
+                      className="w-24 h-16 object-cover rounded flex-shrink-0"
+                    />
+                    <p className="text-xs text-gray-700 dark:text-gray-300 line-clamp-2 flex-1 overflow-hidden">
+                      {video?.snippet?.title}
+                    </p>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         ) : (
@@ -106,37 +167,6 @@ export default function VideoBlock({ query }) {
                 </>
               )}
             </button>
-          </div>
-        )}
-
-        {/* Video Selection */}
-        {videos.length > 1 && (
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              More videos:
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              {videos.map((video, index) => (
-                <button
-                  key={getVideoId(video)}
-                  onClick={() => handleVideoSelect(video)}
-                  className={`flex gap-3 p-2 rounded-lg transition-all text-left ${
-                    selectedVideo?.id?.videoId === getVideoId(video)
-                      ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-500'
-                      : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <img
-                    src={video?.snippet?.thumbnails?.medium?.url}
-                    alt={video?.snippet?.title}
-                    className="w-20 h-12 object-cover rounded"
-                  />
-                  <p className="text-xs text-gray-700 dark:text-gray-300 line-clamp-2 flex-1">
-                    {video?.snippet?.title}
-                  </p>
-                </button>
-              ))}
-            </div>
           </div>
         )}
 

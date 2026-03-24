@@ -1,23 +1,73 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import LessonRenderer from '../components/LessonRenderer';
 import LessonPDFExporter from '../components/LessonPDFExporter';
 import LessonAudioPlayer from '../components/LessonAudioPlayer';
+import { getCourseById } from '../utils/api';
 
 export default function CoursePage() {
-  const { courseTitle } = useParams();
+  const { courseId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const course = location.state?.course;
+  const courseFromState = location.state?.course;
+
+  const [course, setCourse] = useState(courseFromState);
+  const [loading, setLoading] = useState(!courseFromState);
+  const [error, setError] = useState('');
 
   const [selectedModule, setSelectedModule] = useState(0);
   const [selectedLesson, setSelectedLesson] = useState(0);
 
-  if (!course) {
+  // Fetch course from API if not in state (page refresh or direct link)
+  useEffect(() => {
+    // If we have course from state, use it
+    if (courseFromState) {
+      console.log('CoursePage: Got course from state:', courseFromState);
+      console.log('CoursePage: Modules:', courseFromState.modules);
+      setCourse(courseFromState);
+      setLoading(false);
+      return;
+    }
+
+    // If we have courseId param, fetch from API
+    if (courseId && courseId !== 'undefined') {
+      const fetchCourse = async () => {
+        try {
+          setLoading(true);
+          console.log('CoursePage: Fetching course from API:', courseId);
+          const data = await getCourseById(courseId);
+          console.log('CoursePage: API response:', data);
+          console.log('CoursePage: Course modules:', data.course?.modules);
+          setCourse(data.course);
+        } catch (err) {
+          console.error('Failed to fetch course:', err);
+          setError(err.response?.data?.detail || 'Failed to load course');
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchCourse();
+    } else if (!courseId && !courseFromState) {
+      // No course ID and no state - redirect to home
+      setError('No course selected');
+      setLoading(false);
+    }
+  }, [courseId, courseFromState]);
+
+  if (loading) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500 dark:text-gray-400 mb-4">
-          Course not found. Please generate a course first.
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <p className="mt-4 text-gray-600 dark:text-gray-400">Loading course...</p>
+      </div>
+    );
+  }
+
+  if (error || !course) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500 dark:text-red-400 mb-4">
+          {error || 'Course not found. Please generate a course first.'}
         </p>
         <button
           onClick={() => navigate('/')}
@@ -34,47 +84,52 @@ export default function CoursePage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Course Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-2 mb-4 text-sm">
-          <button
-            onClick={() => navigate('/')}
-            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline"
-          >
-            ← Back to Home
-          </button>
-          <span className="text-gray-400">/</span>
-          <span className="text-gray-600 dark:text-gray-400 truncate">{course.title}</span>
-        </div>
-        
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-          {course.title}
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-4">{course.description}</p>
-        
-        {/* Metadata */}
-        {course.metadata && (
-          <div className="flex flex-wrap gap-4 mb-4">
-            <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-3 py-1 rounded-full text-sm">
-              📊 Level: {course.metadata.level}
-            </span>
-            <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-sm">
-              ⏱️ Duration: {course.metadata.estimated_duration}
-            </span>
-          </div>
-        )}
-        
-        <div className="flex flex-wrap gap-2">
-          {course.metadata?.prerequisites?.map((prereq, index) => (
-            <span
-              key={index}
-              className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-3 py-1 rounded-full text-sm"
+      {/* Course Header - Fixed */}
+      <div className="fixed top-16 left-20 right-0 z-30 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+        <div className="px-6 py-3">
+          <div className="flex items-center gap-2 mb-2 text-sm">
+            <button
+              onClick={() => navigate('/')}
+              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline flex-shrink-0"
             >
-              📌 {prereq}
-            </span>
-          ))}
+              ← Back to Home
+            </button>
+            <span className="text-gray-400 flex-shrink-0">/</span>
+            <span className="text-gray-600 dark:text-gray-400 truncate">{course.title}</span>
+          </div>
+
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
+            {course.title}
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mb-2 line-clamp-2">{course.description}</p>
+
+          {/* Metadata */}
+          {course.metadata && (
+            <div className="flex flex-wrap gap-3 mb-2">
+              <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2.5 py-0.5 rounded-full text-xs whitespace-nowrap">
+                📊 Level: {course.metadata.level}
+              </span>
+              <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2.5 py-0.5 rounded-full text-xs whitespace-nowrap">
+                ⏱️ Duration: {course.metadata.estimated_duration}
+              </span>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-1.5">
+            {course.metadata?.prerequisites?.map((prereq, index) => (
+              <span
+                key={index}
+                className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2.5 py-0.5 rounded-full text-xs whitespace-nowrap"
+              >
+                📌 {prereq}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
+
+      {/* Spacer for fixed header */}
+      <div className="h-36"></div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Module & Lesson Sidebar */}

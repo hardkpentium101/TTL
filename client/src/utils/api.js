@@ -9,6 +9,65 @@ export const api = axios.create({
   },
 });
 
+// Add auth token interceptor
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth0_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  } else {
+    console.log('[API] No token found in localStorage for request:', config.url);
+  }
+  return config;
+});
+
+// Handle 401 errors (token expired)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Token expired, clear it
+      localStorage.removeItem('auth0_token');
+      // Optionally redirect to login or trigger re-authentication
+    }
+    return Promise.reject(error);
+  }
+);
+
+// ============= Auth Endpoints =============
+
+export const getOrCreateUser = async () => {
+  console.log('API: Calling /api/auth/user');
+  const response = await api.post('/api/auth/user');
+  console.log('API: Response from /api/auth/user:', response.data);
+  return response.data;
+};
+
+// ============= Course Endpoints =============
+
+// Get user's courses list
+export const getUserCourses = async () => {
+  const response = await api.get('/api/user/courses');
+  return response.data;
+};
+
+// Get specific course by ID (with full content)
+export const getUserCourse = async (courseId) => {
+  const response = await api.get(`/api/user/courses/${courseId}`);
+  return response.data;
+};
+
+// Get any course by ID (public access)
+export const getCourseById = async (courseId) => {
+  const response = await api.get(`/api/courses/${courseId}`);
+  return response.data;
+};
+
+// Delete user's course
+export const deleteCourse = async (courseId) => {
+  const response = await api.delete(`/api/user/courses/${courseId}`);
+  return response.data;
+};
+
 // Synchronous course generation (blocks until complete)
 export const generateCourse = async (topic) => {
   const response = await api.post('/api/generate-course', { topic });
@@ -39,11 +98,11 @@ export const waitForCourse = async (jobId, onProgress = null, interval = 2000) =
     const poll = async () => {
       try {
         const status = await getCourseStatus(jobId);
-        
+
         if (onProgress) {
           onProgress(status);
         }
-        
+
         if (status.status === 'completed') {
           const result = await getCourseResult(jobId);
           resolve(result.data);
@@ -57,7 +116,7 @@ export const waitForCourse = async (jobId, onProgress = null, interval = 2000) =
         reject(error);
       }
     };
-    
+
     poll();
   });
 };
