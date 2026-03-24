@@ -50,7 +50,13 @@ function App() {
           <Route path="my-courses" element={
             <div className="text-center py-12">
               <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">My Courses</h1>
-              <p className="text-gray-600 dark:text-gray-400">Your saved courses will appear here (Milestone 5: Database)</p>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">Your saved courses will appear here</p>
+              <p className="text-sm text-gray-500 dark:text-gray-500">
+                💡 Tip: Use the sidebar dropdown to quickly access your recent courses
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-600 mt-4">
+                (Milestone 5: Database integration pending)
+              </p>
             </div>
           } />
           <Route path="bookmarks" element={
