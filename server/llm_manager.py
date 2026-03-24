@@ -9,6 +9,13 @@ import requests
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, List
 
+try:
+    import json5
+    HAS_JSON5 = True
+except ImportError:
+    HAS_JSON5 = False
+    print("[LLM] json5 not installed, using standard JSON parser")
+
 
 class LLMProvider(ABC):
     """Base class for all LLM providers."""
@@ -38,27 +45,36 @@ class LLMProvider(ABC):
                     text = text[4:]
                 text = text.strip()
         
-        # Fix common JSON issues from LLMs
-        # 1. Fix unquoted keys: {key: "value"} -> {"key": "value"}
-        text = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', text)
+        # Try json5 first (handles unquoted keys, trailing commas, etc.)
+        if HAS_JSON5:
+            try:
+                return json5.loads(text)
+            except Exception as e:
+                print(f"[{self.name}] json5 parse error: {str(e)[:100]}")
         
-        # 2. Remove trailing commas before } or ]
+        # Fallback: standard JSON with cleanup
+        # 1. Fix unquoted keys
+        text = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', text)
+        # 2. Remove trailing commas
         text = re.sub(r',(\s*[}\]])', r'\1', text)
         
-        # Try to parse JSON
         try:
             return json.loads(text)
         except json.JSONDecodeError as e:
             print(f"[{self.name}] JSON parse error: {str(e)[:100]}")
             
-            # Try to find JSON in text
+            # Try to extract JSON object
             start = text.find("{")
             end = text.rfind("}") + 1
             if start >= 0 and end > start:
                 try:
-                    return json.loads(text[start:end])
-                except:
-                    pass
+                    extracted = text[start:end]
+                    # Clean and try again
+                    extracted = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', extracted)
+                    extracted = re.sub(r',(\s*[}\]])', r'\1', extracted)
+                    return json.loads(extracted)
+                except Exception as e2:
+                    print(f"[{self.name}] Fallback parse failed: {str(e2)[:80]}")
             
             return None
     
