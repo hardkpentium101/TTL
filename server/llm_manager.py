@@ -1,14 +1,10 @@
 """
 LLM Manager for Text-to-Learn
 Extensible manager supporting multiple LLM providers.
-
-Add new providers by:
-1. Create a new class inheriting from LLMProvider
-2. Implement generate_course() method
-3. Add to PROVIDER_REGISTRY
 """
 import os
 import json
+import re
 import requests
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, List
@@ -41,6 +37,13 @@ class LLMProvider(ABC):
                 if text.startswith("json"):
                     text = text[4:]
                 text = text.strip()
+        
+        # Fix common JSON issues from LLMs
+        # 1. Fix unquoted keys: {key: "value"} -> {"key": "value"}
+        text = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', text)
+        
+        # 2. Remove trailing commas before } or ]
+        text = re.sub(r',(\s*[}\]])', r'\1', text)
         
         # Try to parse JSON
         try:
