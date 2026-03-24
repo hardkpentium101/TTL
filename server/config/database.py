@@ -23,14 +23,9 @@ async def connect_to_database():
 
     try:
         # Use certifi for SSL certificates
-        import ssl
-
         client = AsyncIOMotorClient(
             MONGO_URI,
             tlsCAFile=certifi.where(),
-            tls=True,
-            tlsAllowInvalidCertificates=False,
-            tlsMinVersion="TLSv1.2",
             serverSelectionTimeoutMS=30000,
             socketTimeoutMS=60000,
             connectTimeoutMS=30000,
