@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { generateCourse } from '../utils/api';
+import { generateCourseAsync, waitForCourse } from '../utils/api';
 
 export default function PromptForm() {
   const [topic, setTopic] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [progress, setProgress] = useState(0);
+  const [statusMessage, setStatusMessage] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -14,15 +16,35 @@ export default function PromptForm() {
 
     setLoading(true);
     setError('');
+    setProgress(0);
+    setStatusMessage('Starting course generation...');
 
     try {
-      const response = await generateCourse(topic);
-      const course = response.course || response;
-      navigate(`/course/${encodeURIComponent(course.title)}`, {
-        state: { course },
-      });
+      // Start async job
+      const { job_id } = await generateCourseAsync(topic);
+      
+      // Poll for completion with progress updates
+      const course = await waitForCourse(
+        job_id,
+        (status) => {
+          setProgress(status.progress || 0);
+          setStatusMessage(status.message || 'Generating...');
+        },
+        1500  // Poll every 1.5 seconds
+      );
+      
+      setProgress(100);
+      setStatusMessage('Course ready!');
+      
+      setTimeout(() => {
+        navigate(`/course/${encodeURIComponent(course.title)}`, {
+          state: { course },
+        });
+      }, 500);
+      
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to generate course');
+      console.error('Course generation error:', err);
+      setError(err.response?.data?.detail || err.message || 'Failed to generate course');
     } finally {
       setLoading(false);
     }
@@ -51,6 +73,29 @@ export default function PromptForm() {
         {error && (
           <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg">
             {error}
+          </div>
+        )}
+
+        {/* Progress Bar */}
+        {loading && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                {statusMessage}
+              </span>
+              <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                {progress}%
+              </span>
+            </div>
+            <div className="w-full bg-blue-200 dark:bg-blue-900/30 rounded-full h-3 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-blue-600 to-purple-600 h-full transition-all duration-500 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+              ⏱️ This takes 30-60 seconds. Polling every 1.5s...
+            </p>
           </div>
         )}
 
