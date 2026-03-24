@@ -25,18 +25,30 @@ function AuthSync() {
 function AppLayout() {
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 overscroll-none">
-      {/* Sidebar Navigation - Fixed */}
-      <div className="fixed top-0 left-0 h-screen z-50">
+      {/* Sidebar Navigation - Fixed on desktop, hidden on mobile */}
+      <div className="fixed top-0 left-0 h-screen z-50 hidden md:block">
+        <Sidebar />
+      </div>
+
+      {/* Mobile Sidebar */}
+      <div className="md:hidden">
         <Sidebar />
       </div>
 
       {/* Main Content Area - Flex column */}
-      <main className="flex-1 ml-20 flex flex-col min-h-screen overscroll-none">
+      <main className="flex-1 flex flex-col min-h-screen overscroll-none md:ml-20">
         {/* Top Navigation Bar - Fixed header with branding */}
-        <nav className="fixed top-0 left-20 right-0 z-40 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-sm border-b border-gray-200 dark:border-gray-700 h-16 flex items-center px-6 flex-shrink-0">
+        <nav className="fixed top-0 left-0 right-0 md:left-20 z-40 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl shadow-sm border-b border-gray-200 dark:border-gray-700 h-16 flex items-center px-4 md:px-6 flex-shrink-0">
+          {/* Mobile Logo */}
+          <div className="md:hidden flex items-center gap-2">
+            <span className="text-2xl">📚</span>
+            <span className="font-bold text-lg text-gray-900 dark:text-gray-100 whitespace-nowrap">
+              Text-to-Learn
+            </span>
+          </div>
           <div className="flex-1"></div>
           <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-600 dark:text-gray-400">
+            <span className="text-sm text-gray-600 dark:text-gray-400 hidden sm:inline">
               AI Course Generator
             </span>
           </div>

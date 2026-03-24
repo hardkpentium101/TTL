@@ -61,7 +61,7 @@ export default function PromptForm() {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
+    <div className="w-full max-w-2xl mx-auto px-4 sm:px-6">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label

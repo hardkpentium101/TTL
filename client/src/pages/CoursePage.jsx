@@ -83,10 +83,10 @@ export default function CoursePage() {
   const currentLesson = currentModule?.lessons?.[selectedLesson];
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6">
       {/* Course Header - Fixed */}
-      <div className="fixed top-16 left-20 right-0 z-30 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-        <div className="px-6 py-3">
+      <div className="fixed top-16 left-0 md:left-20 right-0 z-30 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+        <div className="px-4 md:px-6 py-3">
           <div className="flex items-center gap-2 mb-2 text-sm">
             <button
               onClick={() => navigate('/')}
@@ -94,32 +94,32 @@ export default function CoursePage() {
             >
               ← Back to Home
             </button>
-            <span className="text-gray-400 flex-shrink-0">/</span>
+            <span className="text-gray-400 flex-shrink-0 hidden sm:inline">/</span>
             <span className="text-gray-600 dark:text-gray-400 truncate">{course.title}</span>
           </div>
 
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
             {course.title}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 text-sm mb-2 line-clamp-2">{course.description}</p>
 
           {/* Metadata */}
           {course.metadata && (
-            <div className="flex flex-wrap gap-3 mb-2">
-              <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2.5 py-0.5 rounded-full text-xs whitespace-nowrap">
+            <div className="flex flex-wrap gap-2 md:gap-3 mb-2">
+              <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full text-xs whitespace-nowrap">
                 📊 Level: {course.metadata.level}
               </span>
-              <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2.5 py-0.5 rounded-full text-xs whitespace-nowrap">
+              <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full text-xs whitespace-nowrap">
                 ⏱️ Duration: {course.metadata.estimated_duration}
               </span>
             </div>
           )}
 
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1">
             {course.metadata?.prerequisites?.map((prereq, index) => (
               <span
                 key={index}
-                className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2.5 py-0.5 rounded-full text-xs whitespace-nowrap"
+                className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full text-xs whitespace-nowrap"
               >
                 📌 {prereq}
               </span>
@@ -129,11 +129,11 @@ export default function CoursePage() {
       </div>
 
       {/* Spacer for fixed header */}
-      <div className="h-36"></div>
+      <div className="h-48 md:h-36"></div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
         {/* Module & Lesson Sidebar */}
-        <div className="lg:col-span-1 space-y-4">
+        <div className="lg:col-span-1 space-y-3 md:space-y-4">
           {course.modules?.map((module, moduleIndex) => (
             <div
               key={module.id || moduleIndex}

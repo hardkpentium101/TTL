@@ -68,16 +68,15 @@ export default function Sidebar() {
   // Handle responsive behavior
   useEffect(() => {
     const handleResize = () => {
+      // Auto-collapse on mobile, expand on desktop
       if (window.innerWidth < 768) {
-        setIsCollapsed(true);
-      } else {
         setIsCollapsed(true);
       }
     };
-    
+
     // Set initial state
     handleResize();
-    
+
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -164,7 +163,7 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile menu button */}
+      {/* Mobile menu button - Only show on mobile */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         className="md:hidden fixed top-4 left-4 z-50 bg-white dark:bg-gray-800 p-2 rounded-lg shadow-md border border-gray-200 dark:border-gray-700"
@@ -183,10 +182,10 @@ export default function Sidebar() {
         />
       )}
 
-      {/* Sidebar - Fixed width, expands on hover */}
+      {/* Sidebar - Collapsed by default, expands on hover (both mobile and desktop) */}
       <aside
-        className={`hidden md:flex flex-col h-screen bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl transition-all duration-300 ${
-          isExpanded ? 'w-64' : 'w-20'
+        className={`flex flex-col h-screen bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl transition-all duration-300 fixed md:static top-0 left-0 z-50 md:z-auto ${
+          isCollapsed ? '-translate-x-full md:translate-x-0 md:w-20' : 'translate-x-0 w-64'
         }`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
