@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import LessonRenderer from '../components/LessonRenderer';
 import LessonPDFExporter from '../components/LessonPDFExporter';
@@ -83,10 +83,10 @@ export default function CoursePage() {
   const currentLesson = currentModule?.lessons?.[selectedLesson];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6">
-      {/* Course Header - Fixed */}
-      <div className="fixed top-16 left-0 md:left-20 right-0 z-30 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-        <div className="px-4 md:px-6 py-3">
+    <div className="max-w-7xl mx-auto px-4">
+      {/* Course Header - Fixed - Desktop style */}
+      <div className="fixed top-16 left-0 right-0 z-30 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 ml-20">
+        <div className="px-4 py-3">
           <div className="flex items-center gap-2 mb-2 text-sm">
             <button
               onClick={() => navigate('/')}
@@ -94,18 +94,18 @@ export default function CoursePage() {
             >
               ← Back to Home
             </button>
-            <span className="text-gray-400 flex-shrink-0 hidden sm:inline">/</span>
+            <span className="text-gray-400 flex-shrink-0">/</span>
             <span className="text-gray-600 dark:text-gray-400 truncate">{course.title}</span>
           </div>
 
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">
             {course.title}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 text-sm mb-2 line-clamp-2">{course.description}</p>
 
           {/* Metadata */}
           {course.metadata && (
-            <div className="flex flex-wrap gap-2 md:gap-3 mb-2">
+            <div className="flex flex-wrap gap-2 mb-2">
               <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full text-xs whitespace-nowrap">
                 📊 Level: {course.metadata.level}
               </span>
@@ -129,48 +129,51 @@ export default function CoursePage() {
       </div>
 
       {/* Spacer for fixed header */}
-      <div className="h-48 md:h-36"></div>
+      <div className="h-36"></div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-6">
-        {/* Module & Lesson Sidebar */}
-        <div className="lg:col-span-1 space-y-3 md:space-y-4">
-          {course.modules?.map((module, moduleIndex) => (
-            <div
-              key={module.id || moduleIndex}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
-            >
-              <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3">
-                <h3 className="font-semibold text-gray-800 dark:text-gray-200">
-                  Module {moduleIndex + 1}: {module.title}
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {module.description}
-                </p>
+      {/* Modules and Lesson Content - stacked on mobile, side by side on desktop */}
+      <div className="block md:flex md:gap-4">
+        {/* Modules Section - Scrollable on desktop */}
+        <div className="w-full mb-4 md:mb-0 md:w-1/4 md:max-h-[calc(100vh-200px)] md:overflow-y-auto">
+          <div className="space-y-3">
+            {course.modules?.map((module, moduleIndex) => (
+              <div
+                key={module.id || moduleIndex}
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+              >
+                <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3">
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-200">
+                    Module {moduleIndex + 1}: {module.title}
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {module.description}
+                  </p>
+                </div>
+                <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {module.lessons?.map((lesson, lessonIndex) => (
+                    <button
+                      key={lesson.id || lessonIndex}
+                      onClick={() => {
+                        setSelectedModule(moduleIndex);
+                        setSelectedLesson(lessonIndex);
+                      }}
+                      className={`w-full text-left px-4 py-3 text-sm transition-colors ${
+                        selectedModule === moduleIndex && selectedLesson === lessonIndex
+                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      📄 {lesson.title}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {module.lessons?.map((lesson, lessonIndex) => (
-                  <button
-                    key={lesson.id || lessonIndex}
-                    onClick={() => {
-                      setSelectedModule(moduleIndex);
-                      setSelectedLesson(lessonIndex);
-                    }}
-                    className={`w-full text-left px-4 py-3 text-sm transition-colors ${
-                      selectedModule === moduleIndex && selectedLesson === lessonIndex
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    📄 {lesson.title}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
-        {/* Lesson Content */}
-        <div className="lg:col-span-3">
+        {/* Lesson Content - Full width on mobile */}
+        <div className="w-full md:w-3/4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             {currentLesson && (
               <>

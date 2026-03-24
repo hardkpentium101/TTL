@@ -161,10 +161,10 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile menu button - Only show on mobile */}
+      {/* Toggle button - Show on both mobile and desktop */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="md:hidden fixed top-4 left-4 z-50 bg-white dark:bg-gray-800 p-2 rounded-lg shadow-md border border-gray-200 dark:border-gray-700"
+        className="fixed top-4 left-4 z-50 bg-white dark:bg-gray-800 p-2 rounded-lg shadow-md border border-gray-200 dark:border-gray-700"
         aria-label="Toggle menu"
       >
         <svg className="w-6 h-6 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -172,17 +172,17 @@ export default function Sidebar() {
         </svg>
       </button>
 
-      {/* Overlay for mobile */}
+      {/* Overlay when sidebar is open - click to close */}
       {!isCollapsed && (
         <div
-          className="md:hidden fixed inset-0 bg-black/50 z-40"
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="fixed inset-0 bg-black/50 z-40"
+          onClick={() => setIsCollapsed(true)}
         />
       )}
 
-      {/* Sidebar - Fixed width on desktop (w-20 = 80px), expands on hover (w-64 = 256px) */}
+      {/* Sidebar - Collapsed w-20 (80px), Expanded w-64 (256px) */}
       <aside
-        className={`hidden md:flex flex-col h-screen bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl transition-all duration-300 ${
+        className={`fixed top-0 left-0 flex flex-col h-screen bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl transition-all duration-300 z-50 ${
           isExpanded ? 'w-64' : 'w-20'
         }`}
         onMouseEnter={() => setIsHovered(true)}
