@@ -1,6 +1,7 @@
 """
 Database configuration for MongoDB connection using Motor
 """
+
 import os
 import certifi
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -25,23 +26,22 @@ async def connect_to_database():
         client = AsyncIOMotorClient(
             MONGO_URI,
             tlsCAFile=certifi.where(),
+            tls=True,
+            tlsAllowInvalidCertificates=False,
             serverSelectionTimeoutMS=10000,
             socketTimeoutMS=45000,
-            connectTimeoutMS=45000
+            connectTimeoutMS=45000,
         )
         db = client[DATABASE_NAME]
 
         # Test connection
-        await client.admin.command('ping')
+        await client.admin.command("ping")
 
         # Initialize Beanie with all document models
         from models.user import User
         from models.course import Course
 
-        await init_beanie(
-            database=db,
-            document_models=[User, Course]
-        )
+        await init_beanie(database=db, document_models=[User, Course])
 
         print("✓ MongoDB connection established")
         print(f"✓ Database: {DATABASE_NAME}")
@@ -55,7 +55,7 @@ async def connect_to_database():
 async def close_database_connection():
     """Close MongoDB connection"""
     global client
-    
+
     if client:
         client.close()
         print("✓ MongoDB connection closed")
