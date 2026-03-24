@@ -30,7 +30,7 @@ export default function PromptForm() {
           setProgress(status.progress || 0);
           setStatusMessage(status.message || 'Generating...');
         },
-        1500  // Poll every 1.5 seconds
+        20000  // Poll every 20 seconds
       );
       
       setProgress(100);
@@ -94,7 +94,7 @@ export default function PromptForm() {
               />
             </div>
             <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-              ⏱️ This takes 30-60 seconds. Polling every 1.5s...
+              ⏱️ This takes 30-60 seconds. Checking status every 20s...
             </p>
           </div>
         )}
