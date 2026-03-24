@@ -2,13 +2,14 @@
 Text-to-Learn: AI-Powered Course Generator
 FastAPI Backend
 """
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 import httpx
 import base64
 import json
+import asyncio
 
 load_dotenv()
 
@@ -42,6 +43,9 @@ if GEMINI_API_KEY:
 # Initialize LLM Manager
 from llm_manager import LLMManager
 llm = LLMManager()
+
+# Initialize Task Queue
+from task_queue import task_queue, generate_course_async
 
 
 def generate_mock_course(topic: str) -> dict:
@@ -448,6 +452,77 @@ async def generate_course(request: dict):
         course["_mock"] = True
         course["_error"] = str(e)
         return course
+
+
+# ============= ASYNC COURSE GENERATION =============
+
+@app.post("/api/generate-course-async")
+async def generate_course_async_endpoint(request: dict, background_tasks: BackgroundTasks):
+    """
+    Generate course asynchronously (non-blocking).
+    Returns job_id immediately, poll /api/course-status/{job_id} for results.
+    """
+    topic = request.get("topic", "").strip()
+    level = request.get("level", "Beginner")
+    
+    if not topic:
+        raise HTTPException(status_code=400, detail="Topic cannot be empty")
+    
+    # Create task
+    job_id = task_queue.create_task(topic, level)
+    
+    # Start background task
+    background_tasks.add_task(generate_course_async, llm, topic, level, job_id)
+    
+    return {
+        "job_id": job_id,
+        "status": "pending",
+        "message": "Course generation started",
+        "status_url": f"/api/course-status/{job_id}",
+        "result_url": f"/api/course-result/{job_id}"
+    }
+
+
+@app.get("/api/course-status/{job_id}")
+async def get_course_status(job_id: str):
+    """Get task status without result."""
+    task = task_queue.get_task(job_id)
+    
+    if not task:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    return task
+
+
+@app.get("/api/course-result/{job_id}")
+async def get_course_result(job_id: str):
+    """Get course result if task is completed."""
+    task = task_queue.get_task(job_id)
+    
+    if not task:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    if task["status"] == "pending":
+        return {"status": "pending", "message": "Task is queued"}
+    
+    if task["status"] == "running":
+        return {
+            "status": "running",
+            "progress": task.get("progress", 0),
+            "message": task.get("message", "Generating course...")
+        }
+    
+    if task["status"] == "completed":
+        result = task_queue.get_result(job_id)
+        return {"status": "completed", "data": result}
+    
+    if task["status"] == "failed":
+        raise HTTPException(
+            status_code=500,
+            detail=task.get("message", "Task failed")
+        )
+    
+    raise HTTPException(status_code=404, detail="Unknown status")
 
 
 @app.get("/api/youtube/search")
