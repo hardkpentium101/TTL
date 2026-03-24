@@ -35,10 +35,16 @@ export default function PromptForm() {
       
       setProgress(100);
       setStatusMessage('Course ready!');
-      
+
       setTimeout(() => {
-        navigate(`/course/${encodeURIComponent(course.title)}`, {
-          state: { course },
+        // Handle both wrapped and direct course structures
+        const courseData = course.course || course;
+        const courseTitle = courseData.title || 'Generated Course';
+        
+        console.log('Navigating with course:', courseData);
+        
+        navigate(`/course/${encodeURIComponent(courseTitle)}`, {
+          state: { course: courseData },
         });
       }, 500);
       
