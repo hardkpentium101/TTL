@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { api } from '../../utils/api';
 
 export default function VideoBlock({ query }) {
@@ -6,18 +6,7 @@ export default function VideoBlock({ query }) {
   const [loading, setLoading] = useState(false);
   const [selectedVideoIndex, setSelectedVideoIndex] = useState(0);
   const [error, setError] = useState('');
-
-  // Auto-search videos on mount when query changes
-  useEffect(() => {
-    if (query) {
-      searchVideos();
-    }
-    // Reset state when query changes
-    return () => {
-      setVideos([]);
-      setSelectedVideoIndex(0);
-    };
-  }, [query]);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const searchVideos = async () => {
     if (!query) return;
@@ -33,6 +22,7 @@ export default function VideoBlock({ query }) {
       const videoItems = response.data.items || [];
       setVideos(videoItems);
       setSelectedVideoIndex(0);
+      setHasSearched(true);
     } catch (err) {
       console.error('Error fetching videos:', err);
       setError('Failed to load videos. Please try again.');
@@ -87,7 +77,7 @@ export default function VideoBlock({ query }) {
           </div>
         </div>
 
-        {videos.length > 0 ? (
+        {(videos.length > 0 || hasSearched) ? (
           <div className="space-y-4">
             {/* Main Video Player */}
             <div className="aspect-video bg-black rounded-lg overflow-hidden">
