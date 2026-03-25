@@ -29,7 +29,6 @@ export default function CoursePage() {
   const [error, setError] = useState('');
   const [selectedModule, setSelectedModule] = useState(0);
   const [selectedLesson, setSelectedLesson] = useState(0);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     if (courseFromState) {

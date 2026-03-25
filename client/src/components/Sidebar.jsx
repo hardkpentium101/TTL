@@ -110,7 +110,7 @@ export default function Sidebar() {
           const { getCourseById } = await import('../utils/api');
           const data = await getCourseById(courseId);
           navigate(`/course/${courseId}`, { state: { course: data.course } });
-        } catch (err) {
+        } catch {
           navigate(`/course/${courseId}`);
         }
       }
