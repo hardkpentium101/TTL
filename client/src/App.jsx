@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import Auth0ProviderWithNavigate from './context/Auth0Provider';
+import ErrorBoundary from './components/ErrorBoundary';
 import Sidebar from './components/Sidebar';
 import Home from './pages/Home';
 import CoursePage from './pages/CoursePage';
@@ -62,51 +63,53 @@ function AppLayout() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <Auth0ProviderWithNavigate>
-        <AuthSync />
-        <Routes>
-          {/* App Layout with Sidebar */}
-          <Route path="/" element={<AppLayout />}>
-            <Route index element={<Home />} />
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Auth0ProviderWithNavigate>
+          <AuthSync />
+          <Routes>
+            {/* App Layout with Sidebar */}
+            <Route path="/" element={<AppLayout />}>
+              <Route index element={<Home />} />
 
-            {/* Protected Routes */}
-            <Route path="my-courses" element={
-              <ProtectedRoute>
-                <div className="text-center py-12">
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">My Courses</h1>
-                  <p className="text-gray-600 dark:text-gray-400 mb-6">Your saved courses will appear here</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-500">
-                    💡 Tip: Use the sidebar dropdown to quickly access your recent courses
-                  </p>
-                </div>
-              </ProtectedRoute>
-            } />
+              {/* Protected Routes */}
+              <Route path="my-courses" element={
+                <ProtectedRoute>
+                  <div className="text-center py-12">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">My Courses</h1>
+                    <p className="text-gray-600 dark:text-gray-400 mb-6">Your saved courses will appear here</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500">
+                      💡 Tip: Use the sidebar dropdown to quickly access your recent courses
+                    </p>
+                  </div>
+                </ProtectedRoute>
+              } />
 
-            <Route path="bookmarks" element={
-              <ProtectedRoute>
-                <div className="text-center py-12">
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Bookmarks</h1>
-                  <p className="text-gray-600 dark:text-gray-400">Your bookmarked lessons will appear here</p>
-                </div>
-              </ProtectedRoute>
-            } />
+              <Route path="bookmarks" element={
+                <ProtectedRoute>
+                  <div className="text-center py-12">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Bookmarks</h1>
+                    <p className="text-gray-600 dark:text-gray-400">Your bookmarked lessons will appear here</p>
+                  </div>
+                </ProtectedRoute>
+              } />
 
-            <Route path="settings" element={
-              <ProtectedRoute>
-                <div className="text-center py-12">
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Settings</h1>
-                  <p className="text-gray-600 dark:text-gray-400">Manage your account settings</p>
-                </div>
-              </ProtectedRoute>
-            } />
+              <Route path="settings" element={
+                <ProtectedRoute>
+                  <div className="text-center py-12">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Settings</h1>
+                    <p className="text-gray-600 dark:text-gray-400">Manage your account settings</p>
+                  </div>
+                </ProtectedRoute>
+              } />
 
-            {/* Public route - can access with or without auth */}
-            <Route path="course/:courseId" element={<CoursePage />} />
-          </Route>
-        </Routes>
-      </Auth0ProviderWithNavigate>
-    </BrowserRouter>
+              {/* Public route - can access with or without auth */}
+              <Route path="course/:courseId" element={<CoursePage />} />
+            </Route>
+          </Routes>
+        </Auth0ProviderWithNavigate>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

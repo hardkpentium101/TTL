@@ -12,6 +12,11 @@ import base64
 import json
 import asyncio
 
+# Initialize logging
+from utils.logging_config import setup_logging, get_logger
+setup_logging(level=os.getenv("LOG_LEVEL", "INFO"))
+logger = get_logger(__name__)
+
 load_dotenv()
 
 # ============= Lifespan Events =============
@@ -19,19 +24,28 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     # Startup
-    print("🚀 Starting Text-to-Learn API...")
-    
+    logger.info("🚀 Starting Text-to-Learn API...")
+
     # Initialize database connection
     from config.database import connect_to_database
     db_connected = await connect_to_database()
-    
+
     if not db_connected:
-        print("⚠️  Database not connected - running in mock mode")
-    
+        logger.warning("⚠️  Database not connected - running in mock mode")
+
+    # Start background task cleanup
+    from task_queue import task_queue
+    task_queue.start_cleanup_task()
+
     yield
-    
+
     # Shutdown
-    print("👋 Shutting down Text-to-Learn API...")
+    logger.info("👋 Shutting down Text-to-Learn API...")
+    
+    # Stop background tasks
+    task_queue.stop_cleanup_task()
+    
+    # Close database connection
     from config.database import close_database_connection
     await close_database_connection()
 
@@ -46,6 +60,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add rate limiting middleware
+from middlewares.rate_limiter import RateLimitMiddleware
+app.add_middleware(RateLimitMiddleware)
 
 # ============= API Routes =============
 # Import and register route modules

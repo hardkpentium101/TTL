@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from typing import List, Optional
 from bson import ObjectId
 from datetime import datetime
+import re
 
 from models.course import Course, Module, Lesson, LessonContentBlock, CourseCreate
 from models.user import User
@@ -14,6 +15,61 @@ from middlewares.auth import Auth0JWTBearer, get_optional_user, get_user_or_anon
 from config.database import get_database
 
 router = APIRouter(prefix="/api", tags=["courses"])
+
+# ============= Input Validation Constants =============
+MAX_TOPIC_LENGTH = 500  # Maximum topic length to prevent DoS
+MIN_TOPIC_LENGTH = 3    # Minimum topic length for meaningful input
+MAX_TITLE_LENGTH = 200  # Maximum course title length
+
+
+def sanitize_input(text: str) -> str:
+    """
+    Sanitize user input to prevent XSS and injection attacks.
+    - Removes potentially dangerous HTML/script tags
+    - Trims whitespace
+    - Normalizes unicode
+    """
+    if not text:
+        return ""
+    
+    # Trim whitespace
+    text = text.strip()
+    
+    # Remove potential script tags and HTML
+    text = re.sub(r'<[^>]*>', '', text)
+    
+    # Normalize unicode
+    text = text.encode('utf-8', 'ignore').decode('utf-8')
+    
+    return text
+
+
+def validate_topic(topic: str) -> str:
+    """
+    Validate and sanitize topic input.
+    Raises HTTPException if validation fails.
+    """
+    if not topic or not topic.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Topic cannot be empty"
+        )
+    
+    sanitized = sanitize_input(topic)
+    
+    if len(sanitized) < MIN_TOPIC_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Topic must be at least {MIN_TOPIC_LENGTH} characters long"
+        )
+    
+    if len(sanitized) > MAX_TOPIC_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Topic must be less than {MAX_TOPIC_LENGTH} characters (got {len(sanitized)})"
+        )
+    
+    return sanitized
 
 
 # ============= User Management =============
@@ -238,10 +294,10 @@ async def generate_and_save_course(
     Combines AI generation with database persistence.
     Works for both authenticated and anonymous users.
     """
-    topic = request.get("topic", "").strip()
-
-    if not topic:
-        raise HTTPException(status_code=400, detail="Topic cannot be empty")
+    topic = request.get("topic", "")
+    
+    # Validate and sanitize topic
+    topic = validate_topic(topic)
 
     try:
         # Import LLM for generation
@@ -259,6 +315,11 @@ async def generate_and_save_course(
 
         # Extract course info
         generated_course = course_data["course"]
+
+        # Validate and sanitize course title
+        title = sanitize_input(generated_course.get("title", f"Course: {topic}"))
+        if len(title) > MAX_TITLE_LENGTH:
+            title = title[:MAX_TITLE_LENGTH - 3] + "..."
 
         # Convert modules to proper format
         modules = []
@@ -291,8 +352,8 @@ async def generate_and_save_course(
 
         # Create and save course
         course = Course(
-            title=generated_course.get("title", f"Course: {topic}"),
-            description=generated_course.get("description", ""),
+            title=title,
+            description=sanitize_input(generated_course.get("description", "")),
             creator=user["sub"],
             modules=modules,
             tags=generated_course.get("tags", [topic.lower().replace(" ", "-")]),
@@ -332,11 +393,16 @@ async def generate_course_async_endpoint(
     from task_queue import task_queue, generate_course_async
     from llm_manager import LLMManager
 
-    topic = request.get("topic", "").strip()
+    topic = request.get("topic", "")
     level = request.get("level", "Beginner")
 
-    if not topic:
-        raise HTTPException(status_code=400, detail="Topic cannot be empty")
+    # Validate and sanitize topic
+    topic = validate_topic(topic)
+
+    # Validate level
+    valid_levels = ["Beginner", "Intermediate", "Advanced"]
+    if level not in valid_levels:
+        level = "Beginner"
 
     # Create task
     job_id = task_queue.create_task(topic, level)

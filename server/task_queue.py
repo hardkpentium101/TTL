@@ -1,11 +1,21 @@
 """
 Async Task Queue for LLM Course Generation
-Uses asyncio for non-blocking LLM calls with job status tracking
+Uses asyncio for non-blocking LLM calls with job status tracking,
+timeout handling, and automatic cleanup.
 """
 import asyncio
 import uuid
+import logging
+import sys
 from typing import Dict, Optional, Any
 from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
+
+# Task timeout settings
+TASK_TIMEOUT_SECONDS = 600  # 10 minutes max for course generation
+TASK_CLEANUP_INTERVAL = 300  # Clean up every 5 minutes
+MAX_RESULT_SIZE_BYTES = 10 * 1024 * 1024  # 10MB max result size
 
 
 class TaskQueue:
@@ -15,6 +25,30 @@ class TaskQueue:
         self.tasks: Dict[str, dict] = {}
         self.results: Dict[str, Any] = {}
         self.errors: Dict[str, str] = {}
+        self._cleanup_task: Optional[asyncio.Task] = None
+
+    def start_cleanup_task(self):
+        """Start background cleanup task."""
+        if self._cleanup_task is None:
+            self._cleanup_task = asyncio.create_task(self._cleanup_loop())
+
+    def stop_cleanup_task(self):
+        """Stop background cleanup task."""
+        if self._cleanup_task:
+            self._cleanup_task.cancel()
+            self._cleanup_task = None
+
+    async def _cleanup_loop(self):
+        """Periodically clean up old tasks."""
+        try:
+            while True:
+                await asyncio.sleep(TASK_CLEANUP_INTERVAL)
+                self.cleanup_old_tasks(hours=1)
+                self.cleanup_stuck_tasks()
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.error(f"Error in cleanup loop: {e}")
 
     def create_task(self, topic: str, level: str = "Beginner") -> str:
         """Create a new task and return job ID."""
@@ -28,7 +62,8 @@ class TaskQueue:
             "started_at": None,
             "completed_at": None,
             "progress": 0,
-            "message": "Task queued"
+            "message": "Task queued",
+            "timeout_at": None  # Will be set when task starts
         }
         return job_id
 
@@ -42,6 +77,10 @@ class TaskQueue:
 
         if status == "running" and not task["started_at"]:
             task["started_at"] = datetime.utcnow().isoformat()
+            # Set timeout deadline
+            task["timeout_at"] = (
+                datetime.utcnow() + timedelta(seconds=TASK_TIMEOUT_SECONDS)
+            ).isoformat()
 
         if progress is not None:
             task["progress"] = progress
@@ -54,12 +93,20 @@ class TaskQueue:
         if job_id not in self.tasks:
             return
 
+        # Check result size
+        result_size = sys.getsizeof(str(result))
+        if result_size > MAX_RESULT_SIZE_BYTES:
+            logger.warning(f"Result for task {job_id} exceeds size limit ({result_size} bytes)")
+            self.fail_task(job_id, "Result too large")
+            return
+
         task = self.tasks[job_id]
         task["status"] = "completed"
         task["completed_at"] = datetime.utcnow().isoformat()
         task["progress"] = 100
         task["message"] = "Course generated successfully"
         self.results[job_id] = result
+        logger.info(f"Task {job_id} completed successfully")
 
     def fail_task(self, job_id: str, error: str):
         """Mark task as failed."""
@@ -71,6 +118,7 @@ class TaskQueue:
         task["completed_at"] = datetime.utcnow().isoformat()
         task["message"] = f"Failed: {error}"
         self.errors[job_id] = error
+        logger.error(f"Task {job_id} failed: {error}")
 
     def get_task(self, job_id: str) -> Optional[dict]:
         """Get task status."""
@@ -91,6 +139,23 @@ class TaskQueue:
             self.tasks.pop(job_id, None)
             self.results.pop(job_id, None)
             self.errors.pop(job_id, None)
+        if old_jobs:
+            logger.info(f"Cleaned up {len(old_jobs)} old tasks")
+
+    def cleanup_stuck_tasks(self):
+        """Find and fail tasks that have been running too long."""
+        now = datetime.utcnow()
+        stuck_jobs = []
+        
+        for job_id, task in self.tasks.items():
+            if task["status"] == "running" and task.get("timeout_at"):
+                timeout_at = datetime.fromisoformat(task["timeout_at"])
+                if now > timeout_at:
+                    stuck_jobs.append(job_id)
+        
+        for job_id in stuck_jobs:
+            logger.warning(f"Task {job_id} timed out after {TASK_TIMEOUT_SECONDS}s")
+            self.fail_task(job_id, f"Task timed out after {TASK_TIMEOUT_SECONDS} seconds")
 
 
 # Global task queue instance
@@ -107,7 +172,8 @@ async def generate_course_async(
     """
     Async wrapper for LLM course generation.
     Runs in background without blocking the request.
-    
+    Includes timeout handling and progress tracking.
+
     Args:
         llm_manager: LLMManager instance
         topic: Course topic
@@ -131,14 +197,14 @@ async def generate_course_async(
         if course_data:
             task_queue.update_task(job_id, "running", progress=90, message="Finalizing course...")
             await asyncio.sleep(0.1)
-            
+
             # Save to database if creator_sub is provided
             if creator_sub:
                 try:
                     from models.course import Course, Module, Lesson, LessonContentBlock
-                    
+
                     generated_course = course_data.get("course", course_data)
-                    
+
                     # Convert modules to proper format
                     modules = []
                     for module_data in generated_course.get("modules", []):
@@ -148,7 +214,7 @@ async def generate_course_async(
                             content_blocks = []
                             for block in lesson_data.get("content", []):
                                 content_blocks.append(LessonContentBlock(**block))
-                            
+
                             lesson = Lesson(
                                 id=lesson_data.get("id", str(datetime.utcnow().timestamp())),
                                 title=lesson_data["title"],
@@ -159,7 +225,7 @@ async def generate_course_async(
                                 is_enriched=lesson_data.get("is_enriched", False)
                             )
                             lessons.append(lesson)
-                        
+
                         module = Module(
                             id=module_data.get("id", str(datetime.utcnow().timestamp())),
                             title=module_data["title"],
@@ -167,7 +233,7 @@ async def generate_course_async(
                             lessons=lessons
                         )
                         modules.append(module)
-                    
+
                     # Create and save course
                     course = Course(
                         title=generated_course.get("title", f"Course: {topic}"),
@@ -177,22 +243,26 @@ async def generate_course_async(
                         tags=generated_course.get("tags", [topic.lower().replace(" ", "-")])
                     )
                     await course.insert()
-                    
+
                     # Add course ID to result
                     course_data["course_id"] = str(course.id)
                     course_data["saved"] = True
-                    
+
                 except Exception as db_error:
-                    print(f"[TaskQueue] Failed to save course to DB: {db_error}")
+                    logger.error(f"Failed to save course to DB: {db_error}")
                     course_data["saved"] = False
                     course_data["db_error"] = str(db_error)
-            
+
             task_queue.complete_task(job_id, course_data)
             return course_data
         else:
             raise Exception("LLM returned no course data")
 
+    except asyncio.CancelledError:
+        task_queue.fail_task(job_id, "Task was cancelled")
+        raise
     except Exception as e:
+        logger.error(f"Error generating course: {e}")
         task_queue.fail_task(job_id, str(e))
         raise
 

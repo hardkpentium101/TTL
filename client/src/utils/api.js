@@ -2,11 +2,17 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+// Maximum retry attempts for failed requests
+const MAX_RETRIES = 3;
+// Retry delay in milliseconds
+const RETRY_DELAY = 1000;
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30 second timeout
 });
 
 // Add auth token interceptor
@@ -20,15 +26,53 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 errors (token expired)
+// Retry logic for failed requests
+const shouldRetry = (error) => {
+  // Don't retry on client errors (4xx) except 408 (timeout)
+  if (error.response?.status && error.response.status >= 400 && error.response.status < 500) {
+    return error.response.status === 408;
+  }
+  // Retry on network errors or server errors (5xx)
+  return true;
+};
+
+// Handle response errors with retry logic
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const config = error.config;
+
+    // Check if we should retry
+    if (shouldRetry(error) && !config.__retryCount && config.__retryCount !== MAX_RETRIES) {
+      config.__retryCount = (config.__retryCount || 0) + 1;
+
+      if (config.__retryCount <= MAX_RETRIES) {
+        console.log(`[API] Retry attempt ${config.__retryCount}/${MAX_RETRIES} for ${config.url}`);
+
+        // Wait before retrying (exponential backoff)
+        const delay = RETRY_DELAY * Math.pow(2, config.__retryCount - 1);
+        await new Promise(resolve => setTimeout(resolve, delay));
+
+        return api(config);
+      }
+    }
+
+    // Handle 401 errors (token expired)
     if (error.response?.status === 401) {
       // Token expired, clear it
       localStorage.removeItem('auth0_token');
-      // Optionally redirect to login or trigger re-authentication
+      console.warn('[API] Authentication failed - token cleared');
     }
+
+    // Enhance error message for network issues
+    if (!error.response && error.code === 'ECONNREFUSED') {
+      error.message = 'Server is offline. Please check your connection.';
+    } else if (!error.response && error.code === 'NETWORK_ERROR') {
+      error.message = 'Network error. Please check your internet connection.';
+    } else if (error.code === 'ECONNABORTED') {
+      error.message = 'Request timeout. The server took too long to respond.';
+    }
+
     return Promise.reject(error);
   }
 );

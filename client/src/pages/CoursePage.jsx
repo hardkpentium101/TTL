@@ -5,6 +5,23 @@ import LessonPDFExporter from '../components/LessonPDFExporter';
 import LessonAudioPlayer from '../components/LessonAudioPlayer';
 import { getCourseById } from '../utils/api';
 
+/**
+ * Validate course data structure
+ */
+const validateCourseData = (course) => {
+  if (!course) return false;
+  if (!course.modules || !Array.isArray(course.modules)) return false;
+  if (course.modules.length === 0) return false;
+  
+  // Validate each module has lessons
+  for (const module of course.modules) {
+    if (!module.lessons || !Array.isArray(module.lessons)) return false;
+    if (module.lessons.length === 0) return false;
+  }
+  
+  return true;
+};
+
 export default function CoursePage() {
   const { courseId } = useParams();
   const location = useLocation();
@@ -23,6 +40,15 @@ export default function CoursePage() {
     // If we have course from state, use it
     if (courseFromState) {
       console.log('CoursePage: Got course from state:', courseFromState);
+      
+      // Validate course data
+      if (!validateCourseData(courseFromState)) {
+        console.error('CoursePage: Invalid course data structure');
+        setError('Invalid course data structure');
+        setLoading(false);
+        return;
+      }
+      
       console.log('CoursePage: Modules:', courseFromState.modules);
       setCourse(courseFromState);
       setLoading(false);
@@ -37,11 +63,19 @@ export default function CoursePage() {
           console.log('CoursePage: Fetching course from API:', courseId);
           const data = await getCourseById(courseId);
           console.log('CoursePage: API response:', data);
+          
+          // Validate course data
+          if (!data.course || !validateCourseData(data.course)) {
+            console.error('CoursePage: Invalid course data from API');
+            setError('Invalid course data received from server');
+            return;
+          }
+          
           console.log('CoursePage: Course modules:', data.course?.modules);
           setCourse(data.course);
         } catch (err) {
           console.error('Failed to fetch course:', err);
-          setError(err.response?.data?.detail || 'Failed to load course');
+          setError(err.response?.data?.detail || err.message || 'Failed to load course');
         } finally {
           setLoading(false);
         }
