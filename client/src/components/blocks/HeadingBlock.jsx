@@ -1,7 +1,17 @@
+import React from 'react';
+
 export default function HeadingBlock({ text }) {
   return (
-    <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mt-6 mb-3">
-      {text}
-    </h2>
+    <div className="my-8">
+      <div className="relative">
+        <h2 
+          className="text-2xl md:text-3xl font-bold text-[var(--text-primary)]" 
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          {text}
+        </h2>
+        <div className="absolute -bottom-2 left-0 w-12 h-1 rounded-full bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)]" />
+      </div>
+    </div>
   );
 }

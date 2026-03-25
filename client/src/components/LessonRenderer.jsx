@@ -1,3 +1,4 @@
+import React from 'react';
 import HeadingBlock from './blocks/HeadingBlock';
 import ParagraphBlock from './blocks/ParagraphBlock';
 import CodeBlock from './blocks/CodeBlock';

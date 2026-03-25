@@ -5,15 +5,11 @@ import LessonPDFExporter from '../components/LessonPDFExporter';
 import LessonAudioPlayer from '../components/LessonAudioPlayer';
 import { getCourseById } from '../utils/api';
 
-/**
- * Validate course data structure
- */
 const validateCourseData = (course) => {
   if (!course) return false;
   if (!course.modules || !Array.isArray(course.modules)) return false;
   if (course.modules.length === 0) return false;
   
-  // Validate each module has lessons
   for (const module of course.modules) {
     if (!module.lessons || !Array.isArray(module.lessons)) return false;
     if (module.lessons.length === 0) return false;
@@ -31,47 +27,32 @@ export default function CoursePage() {
   const [course, setCourse] = useState(courseFromState);
   const [loading, setLoading] = useState(!courseFromState);
   const [error, setError] = useState('');
-
   const [selectedModule, setSelectedModule] = useState(0);
   const [selectedLesson, setSelectedLesson] = useState(0);
 
-  // Fetch course from API if not in state (page refresh or direct link)
   useEffect(() => {
-    // If we have course from state, use it
     if (courseFromState) {
-      console.log('CoursePage: Got course from state:', courseFromState);
-      
-      // Validate course data
       if (!validateCourseData(courseFromState)) {
-        console.error('CoursePage: Invalid course data structure');
         setError('Invalid course data structure');
         setLoading(false);
         return;
       }
-      
-      console.log('CoursePage: Modules:', courseFromState.modules);
       setCourse(courseFromState);
       setLoading(false);
       return;
     }
 
-    // If we have courseId param, fetch from API
     if (courseId && courseId !== 'undefined') {
       const fetchCourse = async () => {
         try {
           setLoading(true);
-          console.log('CoursePage: Fetching course from API:', courseId);
           const data = await getCourseById(courseId);
-          console.log('CoursePage: API response:', data);
           
-          // Validate course data
           if (!data.course || !validateCourseData(data.course)) {
-            console.error('CoursePage: Invalid course data from API');
             setError('Invalid course data received from server');
             return;
           }
           
-          console.log('CoursePage: Course modules:', data.course?.modules);
           setCourse(data.course);
         } catch (err) {
           console.error('Failed to fetch course:', err);
@@ -82,7 +63,6 @@ export default function CoursePage() {
       };
       fetchCourse();
     } else if (!courseId && !courseFromState) {
-      // No course ID and no state - redirect to home
       setError('No course selected');
       setLoading(false);
     }
@@ -90,187 +70,314 @@ export default function CoursePage() {
 
   if (loading) {
     return (
-      <div className="text-center py-12">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <p className="mt-4 text-gray-600 dark:text-gray-400">Loading course...</p>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full border-4 border-[var(--border-light)] border-t-[var(--accent-primary)] animate-spin" />
+          <p className="text-[var(--text-secondary)]">Loading course...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !course) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-500 dark:text-red-400 mb-4">
-          {error || 'Course not found. Please generate a course first.'}
-        </p>
-        <button
-          onClick={() => navigate('/')}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
-        >
-          Go Home
-        </button>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center card p-8 max-w-md mx-4 animate-scale-in">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--error-bg)] flex items-center justify-center">
+            <svg className="w-8 h-8 text-[var(--error)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Course Not Found</h2>
+          <p className="text-[var(--text-secondary)] mb-6">
+            {error || 'Please generate a course first to get started.'}
+          </p>
+          <button
+            onClick={() => navigate('/')}
+            className="btn btn-primary"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            Back to Home
+          </button>
+        </div>
       </div>
     );
   }
 
   const currentModule = course.modules?.[selectedModule];
   const currentLesson = currentModule?.lessons?.[selectedLesson];
+  const totalLessons = course.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0;
+  const currentLessonNumber = course.modules?.slice(0, selectedModule).reduce((acc, m) => acc + (m.lessons?.length || 0), 0) + selectedLesson + 1 || 1;
 
   return (
-    <div className="max-w-7xl mx-auto px-4">
-      {/* Course Header - Fixed - Desktop style */}
-      <div className="fixed top-16 left-0 right-0 z-30 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 ml-20">
-        <div className="px-4 py-3">
-          <div className="flex items-center gap-2 mb-2 text-sm">
+    <div className="min-h-screen pb-20">
+      {/* Hero Header */}
+      <div className="relative bg-gradient-warm border-b border-[var(--border-light)]">
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-[var(--accent-primary)]/10 blur-3xl" />
+          <div className="absolute bottom-0 left-1/4 w-48 h-48 rounded-full bg-[var(--accent-secondary)]/10 blur-3xl" />
+        </div>
+        
+        <div className="relative max-w-5xl mx-auto px-6 py-8 pt-24">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 mb-6 animate-fade-in">
             <button
               onClick={() => navigate('/')}
-              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline flex-shrink-0"
+              className="flex items-center gap-2 text-sm text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors"
             >
-              ← Back to Home
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back
             </button>
-            <span className="text-gray-400 flex-shrink-0">/</span>
-            <span className="text-gray-600 dark:text-gray-400 truncate">{course.title}</span>
+            <span className="text-[var(--text-muted)]">/</span>
+            <span className="text-sm text-[var(--text-secondary)] truncate max-w-[200px]">{course.title}</span>
           </div>
 
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">
-            {course.title}
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm mb-2 line-clamp-2">{course.description}</p>
+          {/* Title Section */}
+          <div className="animate-fade-in-up">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
+              {course.title}
+            </h1>
+            <p className="text-lg text-[var(--text-secondary)] max-w-2xl mb-6 leading-relaxed">
+              {course.description}
+            </p>
 
-          {/* Metadata */}
-          {course.metadata && (
-            <div className="flex flex-wrap gap-2 mb-2">
-              <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full text-xs whitespace-nowrap">
-                📊 Level: {course.metadata.level}
+            {/* Metadata Badges */}
+            <div className="flex flex-wrap gap-3 mb-6">
+              {course.metadata?.level && (
+                <span className="badge badge-primary">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  {course.metadata.level}
+                </span>
+              )}
+              {course.metadata?.estimated_duration && (
+                <span className="badge">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {course.metadata.estimated_duration}
+                </span>
+              )}
+              <span className="badge">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                {totalLessons} lessons
               </span>
-              <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full text-xs whitespace-nowrap">
-                ⏱️ Duration: {course.metadata.estimated_duration}
+              <span className="badge">
+                {course.modules?.length || 0} modules
               </span>
             </div>
-          )}
 
-          <div className="flex flex-wrap gap-1">
-            {course.metadata?.prerequisites?.map((prereq, index) => (
-              <span
-                key={index}
-                className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full text-xs whitespace-nowrap"
-              >
-                📌 {prereq}
-              </span>
-            ))}
+            {/* Prerequisites */}
+            {course.metadata?.prerequisites?.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-[var(--text-muted)]">Prerequisites:</span>
+                {course.metadata.prerequisites.map((prereq, index) => (
+                  <span key={index} className="text-xs px-2 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]">
+                    {prereq}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Spacer for fixed header */}
-      <div className="h-36"></div>
+      {/* Main Content */}
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        <div className="flex gap-8">
+          {/* Modules Sidebar - Desktop */}
+          <aside className="hidden lg:block w-80 flex-shrink-0">
+            <div className="sticky top-8">
+              <div className="card p-4">
+                <h3 className="font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-[var(--accent-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                  Course Content
+                </h3>
+                
+                <div className="space-y-3">
+                  {course.modules?.map((module, moduleIndex) => (
+                    <div key={module.id || moduleIndex} className="animate-fade-in-up" style={{ animationDelay: `${moduleIndex * 0.1}s` }}>
+                      <button
+                        onClick={() => {
+                          setSelectedModule(moduleIndex);
+                          setSelectedLesson(0);
+                        }}
+                        className={`w-full text-left p-3 rounded-lg transition-all duration-200 ${
+                          selectedModule === moduleIndex
+                            ? 'bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/30'
+                            : 'bg-[var(--bg-tertiary)]/50 hover:bg-[var(--bg-tertiary)] border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-bold ${
+                            selectedModule === moduleIndex
+                              ? 'bg-[var(--accent-primary)] text-white'
+                              : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)]'
+                          }`}>
+                            {moduleIndex + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className={`font-medium text-sm leading-tight ${
+                              selectedModule === moduleIndex ? 'text-[var(--accent-primary)]' : 'text-[var(--text-primary)]'
+                            }`}>
+                              {module.title}
+                            </h4>
+                            <p className="text-xs text-[var(--text-muted)] mt-1">
+                              {module.lessons?.length || 0} lessons
+                            </p>
+                          </div>
+                        </div>
+                      </button>
 
-      {/* Modules and Lesson Content - stacked on mobile, side by side on desktop */}
-      <div className="block md:flex md:gap-4">
-        {/* Modules Section - Scrollable on desktop */}
-        <div className="w-full mb-4 md:mb-0 md:w-1/4 md:max-h-[calc(100vh-200px)] md:overflow-y-auto">
-          <div className="space-y-3">
-            {course.modules?.map((module, moduleIndex) => (
-              <div
-                key={module.id || moduleIndex}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
-              >
-                <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3">
-                  <h3 className="font-semibold text-gray-800 dark:text-gray-200">
-                    Module {moduleIndex + 1}: {module.title}
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {module.description}
-                  </p>
-                </div>
-                <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {module.lessons?.map((lesson, lessonIndex) => (
-                    <button
-                      key={lesson.id || lessonIndex}
-                      onClick={() => {
-                        setSelectedModule(moduleIndex);
-                        setSelectedLesson(lessonIndex);
-                      }}
-                      className={`w-full text-left px-4 py-3 text-sm transition-colors ${
-                        selectedModule === moduleIndex && selectedLesson === lessonIndex
-                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      📄 {lesson.title}
-                    </button>
+                      {/* Lessons - expanded when selected */}
+                      {selectedModule === moduleIndex && (
+                        <div className="mt-2 ml-4 pl-4 border-l-2 border-[var(--border-light)] space-y-1 animate-fade-in">
+                          {module.lessons?.map((lesson, lessonIndex) => (
+                            <button
+                              key={lesson.id || lessonIndex}
+                              onClick={() => setSelectedLesson(lessonIndex)}
+                              className={`w-full text-left p-2 rounded-md text-sm transition-all duration-200 ${
+                                selectedLesson === lessonIndex
+                                  ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className={`w-1.5 h-1.5 rounded-full ${
+                                  selectedLesson === lessonIndex
+                                    ? 'bg-[var(--accent-primary)]'
+                                    : 'bg-[var(--text-muted)]'
+                                }`} />
+                                <span className="truncate">{lesson.title}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          </aside>
 
-        {/* Lesson Content - Full width on mobile */}
-        <div className="w-full md:w-3/4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          {/* Lesson Content */}
+          <main className="flex-1 min-w-0">
             {currentLesson && (
-              <>
-                <div className="mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
-                  <div className="flex justify-between items-start mb-3">
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                      {currentLesson.title}
-                    </h2>
+              <div className="animate-fade-in-up">
+                {/* Lesson Header */}
+                <div className="mb-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="badge">
+                      Module {selectedModule + 1}
+                    </span>
+                    <span className="text-[var(--text-muted)]">/</span>
+                    <span className="badge">
+                      Lesson {currentLessonNumber} of {totalLessons}
+                    </span>
+                  </div>
+
+                  <h2 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4" style={{ fontFamily: 'var(--font-display)' }}>
+                    {currentLesson.title}
+                  </h2>
+
+                  {/* Action buttons */}
+                  <div className="flex flex-wrap gap-3">
                     <LessonPDFExporter
                       lesson={currentLesson}
                       courseTitle={course.title}
                       moduleName={currentModule.title}
                     />
+                    <button
+                      onClick={() => {
+                        const nextLessonIndex = selectedLesson + 1;
+                        if (nextLessonIndex < (currentModule.lessons?.length || 0)) {
+                          setSelectedLesson(nextLessonIndex);
+                        } else if (selectedModule < (course.modules?.length || 0) - 1) {
+                          setSelectedModule(selectedModule + 1);
+                          setSelectedLesson(0);
+                        }
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="btn btn-secondary text-sm"
+                    >
+                      Next Lesson
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
                   </div>
-                  {currentLesson.objectives && (
-                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 mb-4">
-                      <h4 className="font-semibold text-green-800 dark:text-green-300 mb-2">
-                        🎯 Learning Objectives
-                      </h4>
-                      <ul className="space-y-1">
-                        {currentLesson.objectives.map((objective, index) => (
-                          <li
-                            key={index}
-                            className="text-green-700 dark:text-green-400 text-sm flex items-start"
-                          >
-                            <span className="mr-2">•</span>
-                            {objective}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {currentLesson.key_topics && (
-                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-                      <h4 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">
-                        📚 Key Topics
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {currentLesson.key_topics.map((topic, index) => (
-                          <span
-                            key={index}
-                            className="bg-white dark:bg-gray-800 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-xs"
-                          >
-                            {topic}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
-                <LessonRenderer content={currentLesson.content} />
 
-                {/* Audio Narration Section */}
-                <div className="mt-8">
+                {/* Learning Objectives */}
+                {currentLesson.objectives && currentLesson.objectives.length > 0 && (
+                  <div className="card p-6 mb-6 border-l-4 border-l-[var(--success)]">
+                    <h3 className="font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Learning Objectives
+                    </h3>
+                    <ul className="space-y-2">
+                      {currentLesson.objectives.map((objective, index) => (
+                        <li key={index} className="flex items-start gap-3 text-[var(--text-secondary)]">
+                          <span className="w-5 h-5 rounded-full bg-[var(--success-bg)] text-[var(--success)] flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+                            {index + 1}
+                          </span>
+                          {objective}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Key Topics */}
+                {currentLesson.key_topics && currentLesson.key_topics.length > 0 && (
+                  <div className="card p-6 mb-6 bg-gradient-to-r from-[var(--accent-primary)]/5 to-transparent">
+                    <h3 className="font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-[var(--accent-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                      Key Topics
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {currentLesson.key_topics.map((topic, index) => (
+                        <span key={index} className="px-3 py-1.5 rounded-full bg-[var(--bg-card)] border border-[var(--border-light)] text-sm text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-colors cursor-default">
+                          {topic}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Lesson Content */}
+                <div className="card p-6 md:p-8 mb-6">
+                  <LessonRenderer content={currentLesson.content} />
+                </div>
+
+                {/* Audio Player */}
+                <div className="card p-6 mb-6">
                   <LessonAudioPlayer lesson={currentLesson} />
                 </div>
 
-                {/* Resources Section */}
+                {/* Resources */}
                 {currentLesson.resources && currentLesson.resources.length > 0 && (
-                  <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-3">
-                      🔗 Additional Resources
-                    </h4>
+                  <div className="card p-6">
+                    <h3 className="font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-[var(--accent-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      </svg>
+                      Additional Resources
+                    </h3>
                     <ul className="space-y-2">
                       {currentLesson.resources.map((resource, index) => (
                         <li key={index}>
@@ -278,20 +385,76 @@ export default function CoursePage() {
                             href={resource.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm flex items-center"
+                            className="flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-tertiary)]/50 hover:bg-[var(--bg-tertiary)] transition-colors group"
                           >
-                            <span className="mr-2">📖</span>
-                            {resource.title}
-                            <span className="ml-1 text-xs">↗</span>
+                            <div className="w-8 h-8 rounded-lg bg-[var(--accent-secondary)]/10 flex items-center justify-center flex-shrink-0">
+                              <svg className="w-4 h-4 text-[var(--accent-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                            </div>
+                            <span className="text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors flex-1">
+                              {resource.title}
+                            </span>
+                            <svg className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
                           </a>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
-              </>
+
+                {/* Navigation */}
+                <div className="mt-8 pt-6 border-t border-[var(--border-light)]">
+                  <div className="flex justify-between items-center">
+                    <button
+                      onClick={() => {
+                        if (selectedLesson > 0) {
+                          setSelectedLesson(selectedLesson - 1);
+                        } else if (selectedModule > 0) {
+                          setSelectedModule(selectedModule - 1);
+                          setSelectedLesson((course.modules?.[selectedModule - 1]?.lessons?.length || 1) - 1);
+                        }
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      disabled={selectedModule === 0 && selectedLesson === 0}
+                      className="btn btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                      Previous
+                    </button>
+                    
+                    <span className="text-sm text-[var(--text-muted)]">
+                      {currentLessonNumber} / {totalLessons}
+                    </span>
+                    
+                    <button
+                      onClick={() => {
+                        const nextLessonIndex = selectedLesson + 1;
+                        if (nextLessonIndex < (currentModule.lessons?.length || 0)) {
+                          setSelectedLesson(nextLessonIndex);
+                        } else if (selectedModule < (course.modules?.length || 0) - 1) {
+                          setSelectedModule(selectedModule + 1);
+                          setSelectedLesson(0);
+                        }
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      disabled={selectedModule === (course.modules?.length || 0) - 1 && selectedLesson === (currentModule.lessons?.length || 0) - 1}
+                      className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next Lesson
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
-          </div>
+          </main>
         </div>
       </div>
     </div>

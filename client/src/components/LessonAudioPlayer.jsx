@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { api } from '../utils/api';
 
 export default function LessonAudioPlayer({ lesson }) {
