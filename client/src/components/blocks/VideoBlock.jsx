@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { api } from '../../utils/api';
 
 export default function VideoBlock({ query }) {
@@ -31,141 +31,157 @@ export default function VideoBlock({ query }) {
     }
   };
 
-  const getVideoId = (video) => {
-    return video?.id?.videoId;
-  };
+  const getVideoId = (video) => video?.id?.videoId;
 
   if (loading) {
     return (
-      <div className="my-6">
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg p-5 border border-blue-200 dark:border-blue-800">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-2xl">📹</span>
-            <div>
-              <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                Video Resource
-              </p>
-              <p className="text-xs text-blue-600 dark:text-blue-400">
-                {query}
-              </p>
+      <div className="my-8">
+        <div className="card p-6 animate-pulse">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-12 h-12 rounded-xl bg-[var(--bg-tertiary)]" />
+            <div className="flex-1">
+              <div className="h-4 w-24 bg-[var(--bg-tertiary)] rounded mb-2" />
+              <div className="h-3 w-32 bg-[var(--bg-tertiary)] rounded" />
             </div>
           </div>
-          <div className="flex items-center justify-center py-12">
-            <svg className="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-            </svg>
-            <span className="ml-3 text-gray-600 dark:text-gray-400">Loading videos...</span>
-          </div>
+          <div className="aspect-video bg-[var(--bg-tertiary)] rounded-xl" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="my-6">
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg p-5 border border-blue-200 dark:border-blue-800">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-2xl">📹</span>
-          <div>
-            <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
-              Video Resource
-            </p>
-            <p className="text-xs text-blue-600 dark:text-blue-400">
-              {query}
-            </p>
+    <div className="my-8">
+      <div className="card overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-[var(--accent-secondary)]/10 to-transparent px-6 py-4 border-b border-[var(--border-light)]">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-[var(--accent-secondary)]/15 flex items-center justify-center">
+              <svg className="w-6 h-6 text-[var(--accent-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h4 className="font-semibold text-[var(--text-primary)]">Video Resource</h4>
+              <p className="text-sm text-[var(--text-muted)]">{query}</p>
+            </div>
           </div>
         </div>
 
-        {(videos.length > 0 || hasSearched) ? (
-          <div className="space-y-4">
-            {/* Main Video Player */}
-            <div className="aspect-video bg-black rounded-lg overflow-hidden">
-              <iframe
-                src={`https://www.youtube.com/embed/${getVideoId(videos[selectedVideoIndex])}`}
-                title={videos[selectedVideoIndex]?.snippet?.title}
-                className="w-full h-full"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
+        {/* Content */}
+        <div className="p-6">
+          {videos.length > 0 || hasSearched ? (
+            <div className="space-y-6 animate-fade-in">
+              {/* Main Video */}
+              <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg">
+                {videos.length > 0 ? (
+                  <iframe
+                    src={`https://www.youtube.com/embed/${getVideoId(videos[selectedVideoIndex])}`}
+                    title={videos[selectedVideoIndex]?.snippet?.title}
+                    className="w-full h-full"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white">
+                    <p>No videos found</p>
+                  </div>
+                )}
+              </div>
 
-            {/* Video Info */}
-            <div>
-              <h4 className="font-semibold text-gray-800 dark:text-gray-200 mb-2">
-                {videos[selectedVideoIndex]?.snippet?.title}
-              </h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                {videos[selectedVideoIndex]?.snippet?.description}
-              </p>
-            </div>
+              {/* Video Info */}
+              {videos.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-[var(--text-primary)] text-lg">
+                    {videos[selectedVideoIndex]?.snippet?.title}
+                  </h4>
+                  <p className="text-sm text-[var(--text-secondary)] line-clamp-2">
+                    {videos[selectedVideoIndex]?.snippet?.description}
+                  </p>
+                </div>
+              )}
 
-            {/* Horizontal Scroll Video Thumbnails */}
-            <div className="mt-4 max-h-40 overflow-y-auto">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 sticky top-0 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 py-1">
-                More videos:
+              {/* Video Thumbnails */}
+              {videos.length > 1 && (
+                <div>
+                  <p className="text-sm font-medium text-[var(--text-secondary)] mb-3">
+                    Related Videos
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {videos.slice(0, 4).map((video, index) => (
+                      <button
+                        key={getVideoId(video)}
+                        onClick={() => setSelectedVideoIndex(index)}
+                        className={`group relative rounded-xl overflow-hidden transition-all duration-300 ${
+                          selectedVideoIndex === index
+                            ? 'ring-2 ring-[var(--accent-primary)] scale-[1.02]'
+                            : 'hover:scale-[1.02]'
+                        }`}
+                      >
+                        <img
+                          src={video?.snippet?.thumbnails?.medium?.url}
+                          alt={video?.snippet?.title}
+                          className="w-full aspect-video object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <div className="absolute bottom-2 left-2 right-2">
+                          <p className="text-xs text-white font-medium line-clamp-2 leading-tight">
+                            {video?.snippet?.title}
+                          </p>
+                        </div>
+                        {selectedVideoIndex === index && (
+                          <div className="absolute top-2 right-2">
+                            <div className="w-6 h-6 rounded-full bg-[var(--accent-primary)] flex items-center justify-center">
+                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[var(--accent-secondary)]/10 flex items-center justify-center">
+                <svg className="w-8 h-8 text-[var(--accent-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <h4 className="font-semibold text-[var(--text-primary)] mb-2">Find Video Resources</h4>
+              <p className="text-sm text-[var(--text-muted)] mb-6">
+                Search YouTube for videos related to this lesson
               </p>
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
-                {videos.map((video, index) => (
-                  <button
-                    key={getVideoId(video)}
-                    onClick={() => setSelectedVideoIndex(index)}
-                    className={`flex-shrink-0 flex gap-2 p-2 rounded-lg transition-all text-left w-48 ${
-                      selectedVideoIndex === index
-                        ? 'bg-blue-100 dark:bg-blue-900/30 ring-2 ring-blue-500'
-                        : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <img
-                      src={video?.snippet?.thumbnails?.medium?.url}
-                      alt={video?.snippet?.title}
-                      className="w-24 h-16 object-cover rounded flex-shrink-0"
-                    />
-                    <p className="text-xs text-gray-700 dark:text-gray-300 line-clamp-2 flex-1 overflow-hidden">
-                      {video?.snippet?.title}
-                    </p>
-                  </button>
-                ))}
+              <button
+                onClick={searchVideos}
+                disabled={loading}
+                className="btn btn-primary"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                Search Videos
+              </button>
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div className="mt-4 p-4 rounded-xl bg-[var(--error-bg)] border border-[var(--error)]/20">
+              <div className="flex items-center gap-3">
+                <svg className="w-5 h-5 text-[var(--error)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-[var(--error)]">{error}</p>
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Find relevant videos for this lesson
-            </p>
-            <button
-              onClick={searchVideos}
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Searching...
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  Search Videos
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* Error Message */}
-        {error && (
-          <div className="mt-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg text-sm">
-            {error}
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

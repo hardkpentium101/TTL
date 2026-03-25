@@ -1,11 +1,59 @@
+import React, { useState } from 'react';
+
 export default function CodeBlock({ language, text }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   return (
-    <div className="my-4 rounded-lg overflow-hidden">
-      <div className="bg-gray-800 text-gray-300 px-4 py-2 text-sm font-mono">
-        {language || 'code'}
+    <div className="my-6 rounded-xl overflow-hidden border border-[var(--border-medium)]">
+      {/* Header */}
+      <div className="bg-[var(--bg-tertiary)] px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-[var(--error)]/60" />
+            <div className="w-3 h-3 rounded-full bg-[var(--warning)]/60" />
+            <div className="w-3 h-3 rounded-full bg-[var(--success)]/60" />
+          </div>
+          <span className="text-sm font-medium text-[var(--text-secondary)] font-mono">
+            {language || 'code'}
+          </span>
+        </div>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-tertiary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all"
+        >
+          {copied ? (
+            <>
+              <svg className="w-4 h-4 text-[var(--success)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Copied!
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Copy
+            </>
+          )}
+        </button>
       </div>
-      <pre className="bg-gray-900 text-gray-100 p-4 overflow-x-auto">
-        <code className="text-sm font-mono">{text}</code>
+      
+      {/* Code */}
+      <pre className="bg-[#1a1d1a] dark:bg-[#0d0f0d] p-5 overflow-x-auto">
+        <code className="text-sm font-mono text-[#e5e5e5] leading-relaxed" style={{ fontFamily: 'var(--font-mono)' }}>
+          {text}
+        </code>
       </pre>
     </div>
   );
