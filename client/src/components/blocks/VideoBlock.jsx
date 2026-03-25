@@ -102,8 +102,8 @@ export default function VideoBlock({ query }) {
             </div>
 
             {/* Horizontal Scroll Video Thumbnails */}
-            <div className="mt-4">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+            <div className="mt-4 max-h-40 overflow-y-auto">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 sticky top-0 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 py-1">
                 More videos:
               </p>
               <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
