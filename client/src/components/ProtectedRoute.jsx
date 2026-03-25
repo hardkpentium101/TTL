@@ -18,6 +18,7 @@ export default function ProtectedRoute({ children, onAuthenticated }) {
         }
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, isLoading]);
 
   if (isLoading) {

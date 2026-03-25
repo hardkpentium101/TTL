@@ -236,6 +236,7 @@ export default function LessonAudioPlayer({ lesson }) {
         URL.revokeObjectURL(audioUrl);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const languages = [

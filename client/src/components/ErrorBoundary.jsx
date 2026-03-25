@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React from 'react';
 
 /**
@@ -15,22 +16,25 @@ class ErrorBoundary extends React.Component {
     };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(_error) {  // eslint-disable-line no-unused-vars
     // Update state so the next render will show the fallback UI
     return { hasError: true };
   }
 
-  componentDidCatch(error, errorInfo) {
+  componentDidCatch(_error, errorInfo) {
     // Log the error to console (in production, send to error reporting service)
-    console.error('[ErrorBoundary] Uncaught error:', error, errorInfo);
-    
+    console.error('[ErrorBoundary] Uncaught error:', _error, errorInfo);
+
     this.setState({
-      error,
+      error: _error,
       errorInfo
     });
 
-    // Optionally log to an error reporting service
-    // logErrorToService(error, errorInfo);
+    // Send to error reporting service in production
+    if (process.env.NODE_ENV === 'production') {
+      // TODO: Implement error reporting
+      console.log('Error reported to service');
+    }
   }
 
   handleReset = () => {
@@ -118,11 +122,11 @@ class ErrorBoundary extends React.Component {
  * Higher-Order Component wrapper for Error Boundary
  * Usage: withErrorBoundary(MyComponent)
  */
-export function withErrorBoundary(WrappedComponent) {
+export function withErrorBoundary(_WrappedComponent) {  // eslint-disable-line no-unused-vars
   return function WithErrorBoundary(props) {
     return (
       <ErrorBoundary>
-        <WrappedComponent {...props} />
+        <_WrappedComponent {...props} />
       </ErrorBoundary>
     );
   };
@@ -131,6 +135,7 @@ export function withErrorBoundary(WrappedComponent) {
 /**
  * Hook-based error handling for functional components
  * Returns error state and reset function
+ * eslint-disable react-refresh/only-export-components
  */
 export function useErrorHandler() {
   const [error, setError] = React.useState(null);

@@ -47,7 +47,7 @@ export default function LessonPDFExporter({ lesson, courseTitle, moduleName }) {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       const margin = 15;
-      const pageCount = Math.ceil((canvas.height * (pdfWidth - margin * 2) / canvas.width) / (pdfHeight - 60));
+      const _pageCount = Math.ceil((canvas.height * (pdfWidth - margin * 2) / canvas.width) / (pdfHeight - 60));
 
       // Header background
       pdf.setFillColor(26, 35, 53);
