@@ -10,7 +10,7 @@ from datetime import datetime
 
 from models.course import Course, Module, Lesson, LessonContentBlock, CourseCreate
 from models.user import User
-from middlewares.auth import Auth0JWTBearer, get_optional_user
+from middlewares.auth import Auth0JWTBearer, get_optional_user, get_user_or_anonymous
 from config.database import get_database
 
 router = APIRouter(prefix="/api", tags=["courses"])
@@ -20,12 +20,27 @@ router = APIRouter(prefix="/api", tags=["courses"])
 
 
 @router.post("/auth/user")
-async def get_or_create_user(user: dict = Depends(Auth0JWTBearer)):
+async def get_or_create_user(user: dict = Depends(get_user_or_anonymous)):
     """
     Get or create user in database from Auth0 token.
     Call this after login to ensure user exists in DB.
+    For anonymous users, returns the anonymous user info without DB persistence.
     """
     print(f"[AUTH] get_or_create_user called with user: {user}")
+
+    # Check if user is anonymous
+    if user.get("is_anonymous"):
+        # Don't persist anonymous users to DB, just return their info
+        return {
+            "user": {
+                "sub": user["sub"],
+                "email": user.get("email"),
+                "name": user.get("name", "Anonymous User"),
+                "picture": user.get("picture"),
+                "is_anonymous": True
+            },
+            "created": False
+        }
 
     # Check required fields
     if not user.get("sub"):
@@ -72,18 +87,19 @@ async def get_or_create_user(user: dict = Depends(Auth0JWTBearer)):
 
 
 @router.get("/user/courses")
-async def get_user_courses(user: dict = Depends(Auth0JWTBearer)):
+async def get_user_courses(user: dict = Depends(get_user_or_anonymous)):
     """
     Get all courses created by the authenticated user.
+    For anonymous users, returns courses created in their session.
     Returns list with basic info (no full content).
     """
     try:
         print(f"[DEBUG] get_user_courses called with user: {user}")
-        
+
         # Validate user has sub
         if not user or "sub" not in user:
             raise HTTPException(status_code=400, detail="Invalid user: missing sub")
-        
+
         courses = (
             await Course.find(Course.creator == user["sub"])
             .sort(-Course.created_at)
@@ -121,7 +137,7 @@ async def get_user_courses(user: dict = Depends(Auth0JWTBearer)):
 
 
 @router.get("/user/courses/{course_id}")
-async def get_user_course(course_id: str, user: dict = Depends(Auth0JWTBearer)):
+async def get_user_course(course_id: str, user: dict = Depends(get_user_or_anonymous)):
     """
     Get a specific course with full content by ID.
     Only returns courses owned by the authenticated user.
@@ -147,7 +163,7 @@ async def get_user_course(course_id: str, user: dict = Depends(Auth0JWTBearer)):
 
 
 @router.delete("/user/courses/{course_id}")
-async def delete_user_course(course_id: str, user: dict = Depends(Auth0JWTBearer)):
+async def delete_user_course(course_id: str, user: dict = Depends(get_user_or_anonymous)):
     """
     Delete a course owned by the authenticated user.
     """
@@ -215,11 +231,12 @@ async def get_course_by_id(
 async def generate_and_save_course(
     request: dict,
     background_tasks: BackgroundTasks,
-    user: dict = Depends(Auth0JWTBearer),
+    user: dict = Depends(get_user_or_anonymous),
 ):
     """
     Generate a course from topic and save to database.
     Combines AI generation with database persistence.
+    Works for both authenticated and anonymous users.
     """
     topic = request.get("topic", "").strip()
 
@@ -305,11 +322,12 @@ async def generate_and_save_course(
 async def generate_course_async_endpoint(
     request: dict,
     background_tasks: BackgroundTasks,
-    user: dict = Depends(Auth0JWTBearer),
+    user: dict = Depends(get_user_or_anonymous),
 ):
     """
     Generate course asynchronously (non-blocking).
     Returns job_id immediately, poll /api/course-status/{job_id} for results.
+    Works for both authenticated and anonymous users.
     """
     from task_queue import task_queue, generate_course_async
     from llm_manager import LLMManager

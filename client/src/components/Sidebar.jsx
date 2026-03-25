@@ -21,24 +21,20 @@ export default function Sidebar() {
   useEffect(() => {
     const fetchCourses = async () => {
       console.log('Sidebar: Fetching courses, isAuthenticated:', isAuthenticated);
-      
-      if (!isAuthenticated) {
-        console.log('Sidebar: Not authenticated, clearing courses');
-        setUserCourses([]);
-        return;
+
+      // Always try to fetch courses (works for both authenticated and anonymous users)
+      // Wait a bit for token to be stored by Auth0/useAuth if logged in
+      if (isAuthenticated) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Check if token exists
+        const token = localStorage.getItem('auth0_token');
+        if (!token) {
+          console.log('Sidebar: No token yet, waiting...');
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
       }
-      
-      // Wait a bit for token to be stored by Auth0/useAuth
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Check if token exists
-      const token = localStorage.getItem('auth0_token');
-      if (!token) {
-        console.log('Sidebar: No token yet, waiting...');
-        // Wait a bit more and try again
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-      
+
       try {
         console.log('Sidebar: Calling getUserCourses API...');
         const data = await getUserCourses();
@@ -287,14 +283,14 @@ export default function Sidebar() {
               )}
             </div>
           ) : (
-            <button
-              onClick={() => login()}
-              className={`w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium rounded-lg transition-all ${
-                isExpanded ? 'py-2 px-4' : 'py-2 px-3'
-              }`}
-            >
-              {isExpanded ? 'Sign In' : '🔑'}
-            </button>
+            <div className="flex items-center gap-2">
+              {isExpanded && (
+                <span className="text-sm text-gray-600 dark:text-gray-400">👤 Guest Mode</span>
+              )}
+              {!isExpanded && (
+                <span className="text-xl">👤</span>
+              )}
+            </div>
           )}
         </div>
       </aside>

@@ -3,10 +3,11 @@ import { useAuth } from '../hooks/useAuth';
 
 /**
  * Protected Route Component
- * Redirects to login if user is not authenticated
+ * Allows both authenticated and anonymous users
+ * Syncs user with backend when authenticated
  */
 export default function ProtectedRoute({ children, onAuthenticated }) {
-  const { isAuthenticated, isLoading, login, syncUser } = useAuth();
+  const { isAuthenticated, isLoading, syncUser } = useAuth();
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -30,11 +31,6 @@ export default function ProtectedRoute({ children, onAuthenticated }) {
     );
   }
 
-  if (!isAuthenticated) {
-    // Auto-redirect to login
-    login();
-    return null;
-  }
-
+  // Allow anonymous users to access the app
   return children;
 }
