@@ -3,7 +3,8 @@ Course API Routes
 Handles course CRUD operations, generation, and retrieval.
 """
 
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Security
+from fastapi.security import HTTPAuthorizationCredentials
 from typing import List, Optional
 from bson import ObjectId
 from datetime import datetime
@@ -11,14 +12,19 @@ import re
 
 from models.course import Course, Module, Lesson, LessonContentBlock, CourseCreate
 from models.user import User
-from middlewares.auth import Auth0JWTBearer, get_optional_user, get_user_or_anonymous
+from middlewares.auth import (
+    Auth0JWTBearer,
+    get_optional_user,
+    get_user_or_anonymous,
+    security,
+)
 from config.database import get_database
 
 router = APIRouter(prefix="/api", tags=["courses"])
 
 # ============= Input Validation Constants =============
 MAX_TOPIC_LENGTH = 500  # Maximum topic length to prevent DoS
-MIN_TOPIC_LENGTH = 3    # Minimum topic length for meaningful input
+MIN_TOPIC_LENGTH = 3  # Minimum topic length for meaningful input
 MAX_TITLE_LENGTH = 200  # Maximum course title length
 
 
@@ -31,16 +37,16 @@ def sanitize_input(text: str) -> str:
     """
     if not text:
         return ""
-    
+
     # Trim whitespace
     text = text.strip()
-    
+
     # Remove potential script tags and HTML
-    text = re.sub(r'<[^>]*>', '', text)
-    
+    text = re.sub(r"<[^>]*>", "", text)
+
     # Normalize unicode
-    text = text.encode('utf-8', 'ignore').decode('utf-8')
-    
+    text = text.encode("utf-8", "ignore").decode("utf-8")
+
     return text
 
 
@@ -50,25 +56,22 @@ def validate_topic(topic: str) -> str:
     Raises HTTPException if validation fails.
     """
     if not topic or not topic.strip():
-        raise HTTPException(
-            status_code=400,
-            detail="Topic cannot be empty"
-        )
-    
+        raise HTTPException(status_code=400, detail="Topic cannot be empty")
+
     sanitized = sanitize_input(topic)
-    
+
     if len(sanitized) < MIN_TOPIC_LENGTH:
         raise HTTPException(
             status_code=400,
-            detail=f"Topic must be at least {MIN_TOPIC_LENGTH} characters long"
+            detail=f"Topic must be at least {MIN_TOPIC_LENGTH} characters long",
         )
-    
+
     if len(sanitized) > MAX_TOPIC_LENGTH:
         raise HTTPException(
             status_code=400,
-            detail=f"Topic must be less than {MAX_TOPIC_LENGTH} characters (got {len(sanitized)})"
+            detail=f"Topic must be less than {MAX_TOPIC_LENGTH} characters (got {len(sanitized)})",
         )
-    
+
     return sanitized
 
 
@@ -93,9 +96,9 @@ async def get_or_create_user(user: dict = Depends(get_user_or_anonymous)):
                 "email": user.get("email"),
                 "name": user.get("name", "Anonymous User"),
                 "picture": user.get("picture"),
-                "is_anonymous": True
+                "is_anonymous": True,
             },
-            "created": False
+            "created": False,
         }
 
     # Check required fields
@@ -143,14 +146,21 @@ async def get_or_create_user(user: dict = Depends(get_user_or_anonymous)):
 
 
 @router.get("/user/courses")
-async def get_user_courses(user: dict = Depends(get_user_or_anonymous)):
+async def get_user_courses(
+    credentials: HTTPAuthorizationCredentials = Security(security),
+    user: dict = Depends(get_user_or_anonymous),
+):
     """
     Get all courses created by the authenticated user.
     For anonymous users, returns courses created in their session.
     Returns list with basic info (no full content).
     """
     try:
-        print(f"[DEBUG] get_user_courses called with user: {user}")
+        token = credentials.credentials if credentials else None
+        print(
+            f"[DEBUG] Token present: {bool(token)}, is_anonymous: {user.get('is_anonymous', False)}"
+        )
+        print(f"[DEBUG] get_user_courses called with user sub: {user.get('sub')}")
 
         # Validate user has sub
         if not user or "sub" not in user:
@@ -174,7 +184,9 @@ async def get_user_courses(user: dict = Depends(get_user_or_anonymous)):
                     "description": course.description,
                     "modules_count": len(course.modules),
                     "lessons_count": sum(len(m.lessons) for m in course.modules),
-                    "created_at": course.created_at.isoformat() if course.created_at else None,
+                    "created_at": course.created_at.isoformat()
+                    if course.created_at
+                    else None,
                     "tags": course.tags,
                 }
             )
@@ -186,6 +198,7 @@ async def get_user_courses(user: dict = Depends(get_user_or_anonymous)):
     except Exception as e:
         print(f"[ERROR] Failed to fetch courses: {str(e)}")
         import traceback
+
         traceback.print_exc()
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch courses: {str(e)}"
@@ -219,7 +232,9 @@ async def get_user_course(course_id: str, user: dict = Depends(get_user_or_anony
 
 
 @router.delete("/user/courses/{course_id}")
-async def delete_user_course(course_id: str, user: dict = Depends(get_user_or_anonymous)):
+async def delete_user_course(
+    course_id: str, user: dict = Depends(get_user_or_anonymous)
+):
     """
     Delete a course owned by the authenticated user.
     """
@@ -295,7 +310,7 @@ async def generate_and_save_course(
     Works for both authenticated and anonymous users.
     """
     topic = request.get("topic", "")
-    
+
     # Validate and sanitize topic
     topic = validate_topic(topic)
 
@@ -319,7 +334,7 @@ async def generate_and_save_course(
         # Validate and sanitize course title
         title = sanitize_input(generated_course.get("title", f"Course: {topic}"))
         if len(title) > MAX_TITLE_LENGTH:
-            title = title[:MAX_TITLE_LENGTH - 3] + "..."
+            title = title[: MAX_TITLE_LENGTH - 3] + "..."
 
         # Convert modules to proper format
         modules = []
