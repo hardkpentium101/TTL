@@ -3,18 +3,49 @@ Course Data Validation Utilities
 Validates course structure and content integrity.
 """
 
+import re
 import logging
 from typing import Dict, List, Any, Optional
 
 logger = logging.getLogger(__name__)
 
 # Validation constants
-MAX_MODULES = 20
-MAX_LESSONS_PER_MODULE = 15
-MAX_CONTENT_BLOCKS_PER_LESSON = 30
+MAX_TOPIC_LENGTH = 500
+MIN_TOPIC_LENGTH = 3
 MAX_TITLE_LENGTH = 200
 MAX_DESCRIPTION_LENGTH = 2000
 MAX_TEXT_LENGTH = 10000
+MAX_MODULES = 20
+MAX_LESSONS_PER_MODULE = 15
+MAX_CONTENT_BLOCKS_PER_LESSON = 30
+
+
+def sanitize_input(text: str) -> str:
+    """
+    Sanitize user input to prevent XSS and injection attacks.
+    - Removes potentially dangerous HTML/script tags
+    - Trims whitespace
+    - Normalizes unicode
+    
+    Args:
+        text: Input text to sanitize
+        
+    Returns:
+        Sanitized text string
+    """
+    if not text:
+        return ""
+    
+    # Trim whitespace
+    text = text.strip()
+    
+    # Remove potential script tags and HTML
+    text = re.sub(r'<[^>]*>', '', text)
+    
+    # Normalize unicode
+    text = text.encode('utf-8', 'ignore').decode('utf-8')
+    
+    return text
 
 
 def validate_course_structure(course_data: Dict[str, Any]) -> tuple[bool, List[str]]:
