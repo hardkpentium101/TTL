@@ -55,7 +55,7 @@ export default function Home() {
           const step = Math.min(Math.floor(prog / 17), 5);
           setCurrentStep(step);
         },
-        2000
+        20000  // Poll every 20 seconds
       );
 
       setProgress(100);
