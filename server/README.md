@@ -30,7 +30,7 @@ YOUTUBE_API_KEY=your_youtube_key
 
 ### 3. Run Server
 ```bash
-python -m uvicorn main:app --host 0.0.0.0 --port 5001 --reload
+python -m uvicorn main:app --host 0.0.0.0 --port 5000 --reload
 ```
 
 ## API Endpoints

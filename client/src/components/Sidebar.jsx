@@ -124,13 +124,13 @@ export default function Sidebar() {
       {/* Mobile Toggle */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="fixed top-4 left-4 z-50 p-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border-light)] shadow-md hover:shadow-lg transition-all duration-300"
+        className="fixed top-3 left-3 z-50 p-2.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-light)] shadow-md hover:shadow-lg transition-all duration-300 lg:hidden"
         aria-label="Toggle menu"
       >
-        <svg 
-          className={`w-5 h-5 text-[var(--text-primary)] transition-transform duration-300 ${!isCollapsed ? 'rotate-90' : ''}`} 
-          fill="none" 
-          stroke="currentColor" 
+        <svg
+          className={`w-5 h-5 text-[var(--text-primary)] transition-transform duration-300 ${!isCollapsed ? 'rotate-90' : ''}`}
+          fill="none"
+          stroke="currentColor"
           viewBox="0 0 24 24"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isCollapsed ? "M4 6h16M4 12h16M4 18h16" : "M6 18L18 6M6 6l12 12"} />
@@ -140,7 +140,7 @@ export default function Sidebar() {
       {/* Overlay */}
       {!isCollapsed && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 bg-black/30 z-40 backdrop-blur-sm animate-fade-in lg:hidden"
           onClick={() => setIsCollapsed(true)}
         />
       )}
@@ -148,7 +148,7 @@ export default function Sidebar() {
       {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 flex flex-col h-screen bg-[var(--bg-card)] border-r border-[var(--border-light)] transition-all duration-300 ease-out z-50 ${
-          isExpanded ? 'w-[280px]' : 'w-[72px]'
+          isExpanded ? 'w-[280px] translate-x-0' : 'w-[72px] -translate-x-full lg:translate-x-0'
         }`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
