@@ -33,9 +33,9 @@ class LLMProvider(ABC):
         """Parse JSON from LLM response, handling markdown and extra text."""
         if not text:
             return None
-        
+
         text = text.strip()
-        
+
         # Remove markdown code blocks if present
         if text.startswith("```"):
             parts = text.split("```")
@@ -44,39 +44,56 @@ class LLMProvider(ABC):
                 if text.startswith("json"):
                     text = text[4:]
                 text = text.strip()
-        
+
         # Try json5 first (handles unquoted keys, trailing commas, etc.)
         if HAS_JSON5:
             try:
                 return json5.loads(text)
             except Exception as e:
                 print(f"[{self.name}] json5 parse error: {str(e)[:100]}")
-        
-        # Fallback: standard JSON with cleanup
-        # 1. Fix unquoted keys
-        text = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', text)
-        # 2. Remove trailing commas
-        text = re.sub(r',(\s*[}\]])', r'\1', text)
-        
+
+        # Fallback: standard JSON with aggressive cleanup
+        text = self._clean_json(text)
+
         try:
             return json.loads(text)
         except json.JSONDecodeError as e:
             print(f"[{self.name}] JSON parse error: {str(e)[:100]}")
-            
+
             # Try to extract JSON object
             start = text.find("{")
             end = text.rfind("}") + 1
             if start >= 0 and end > start:
                 try:
                     extracted = text[start:end]
-                    # Clean and try again
-                    extracted = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', extracted)
-                    extracted = re.sub(r',(\s*[}\]])', r'\1', extracted)
+                    extracted = self._clean_json(extracted)
                     return json.loads(extracted)
                 except Exception as e2:
                     print(f"[{self.name}] Fallback parse failed: {str(e2)[:80]}")
-            
+
             return None
+
+    def _clean_json(self, text: str) -> str:
+        """Clean and fix common JSON issues in LLM responses."""
+        # 1. Fix unquoted keys
+        text = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', text)
+        
+        # 2. Remove trailing commas before } or ]
+        text = re.sub(r',(\s*[}\]])', r'\1', text)
+        
+        # 3. Fix missing commas between key-value pairs (common LLM error)
+        #    Pattern: "value" followed by newline/whitespace then "key" without comma
+        text = re.sub(r'("|\d|\]|\})\s*\n(\s*)"', r'\1,\n\2"', text)
+        
+        # 4. Fix double commas
+        text = re.sub(r',\s*,', ',', text)
+        
+        # 5. Remove any text before the first { (LLM preamble)
+        first_brace = text.find("{")
+        if first_brace > 0:
+            text = text[first_brace:]
+        
+        return text
     
     def _get_course_prompt(self, topic: str, level: str) -> str:
         """Standard course generation prompt."""
