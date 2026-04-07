@@ -24,8 +24,8 @@ function AppLayout() {
   return (
     <div className="flex min-h-screen bg-[var(--bg-primary)]">
       <Sidebar />
-      
-      <main className="flex-1 flex flex-col min-h-screen ml-[72px] transition-all duration-300">
+
+      <main className="flex-1 flex flex-col min-h-screen ml-0 lg:ml-[72px] transition-all duration-300">
         <div className="flex-1 overflow-y-auto">
           <Outlet />
         </div>

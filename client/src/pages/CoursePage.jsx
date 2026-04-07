@@ -9,14 +9,115 @@ const validateCourseData = (course) => {
   if (!course) return false;
   if (!course.modules || !Array.isArray(course.modules)) return false;
   if (course.modules.length === 0) return false;
-  
+
   for (const module of course.modules) {
     if (!module.lessons || !Array.isArray(module.lessons)) return false;
     if (module.lessons.length === 0) return false;
   }
-  
+
   return true;
 };
+
+function MobileCourseNav({ course, selectedModule, selectedLesson, onModuleSelect, onLessonSelect, isOpen, onClose }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 lg:hidden">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+        onClick={onClose}
+      />
+      
+      {/* Drawer */}
+      <div className="absolute inset-x-0 bottom-0 top-20 bg-[var(--bg-card)] border-t border-[var(--border-light)] rounded-t-2xl animate-fade-in-up overflow-hidden">
+        {/* Handle */}
+        <div className="flex justify-center py-3 border-b border-[var(--border-light)]">
+          <div className="w-12 h-1.5 rounded-full bg-[var(--text-muted)]" />
+        </div>
+        
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-[var(--border-light)] flex items-center justify-between">
+          <h3 className="font-semibold text-[var(--text-primary)]">Course Content</h3>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+            aria-label="Close navigation"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div className="overflow-y-auto max-h-[calc(100vh-200px)] p-4 space-y-4">
+          {course.modules?.map((module, moduleIndex) => (
+            <div key={module.id || moduleIndex} className="animate-fade-in" style={{ animationDelay: `${moduleIndex * 0.05}s` }}>
+              <button
+                onClick={() => onModuleSelect(moduleIndex)}
+                className={`w-full text-left p-3 rounded-lg transition-all duration-200 ${
+                  selectedModule === moduleIndex
+                    ? 'bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/30'
+                    : 'bg-[var(--bg-tertiary)]/50 border border-transparent'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-bold ${
+                    selectedModule === moduleIndex
+                      ? 'bg-[var(--accent-primary)] text-white'
+                      : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)]'
+                  }`}>
+                    {moduleIndex + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className={`font-medium text-sm leading-tight ${
+                      selectedModule === moduleIndex ? 'text-[var(--accent-primary)]' : 'text-[var(--text-primary)]'
+                    }`}>
+                      {module.title}
+                    </h4>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">
+                      {module.lessons?.length || 0} lessons
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              {/* Lessons */}
+              {selectedModule === moduleIndex && (
+                <div className="mt-2 ml-4 pl-4 border-l-2 border-[var(--border-light)] space-y-1 animate-fade-in">
+                  {module.lessons?.map((lesson, lessonIndex) => (
+                    <button
+                      key={lesson.id || lessonIndex}
+                      onClick={() => {
+                        onLessonSelect(lessonIndex);
+                        onClose();
+                      }}
+                      className={`w-full text-left p-2 rounded-md text-sm transition-all duration-200 ${
+                        selectedLesson === lessonIndex
+                          ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full ${
+                          selectedLesson === lessonIndex
+                            ? 'bg-[var(--accent-primary)]'
+                            : 'bg-[var(--text-muted)]'
+                        }`} />
+                        <span className="truncate">{lesson.title}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function CoursePage() {
   const { courseId } = useParams();
@@ -29,6 +130,7 @@ export default function CoursePage() {
   const [error, setError] = useState('');
   const [selectedModule, setSelectedModule] = useState(0);
   const [selectedLesson, setSelectedLesson] = useState(0);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   useEffect(() => {
     if (courseFromState) {
@@ -123,9 +225,21 @@ export default function CoursePage() {
         <div className="relative max-w-5xl mx-auto px-6 py-8 pt-24">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 mb-6 animate-fade-in">
+            {/* Mobile course navigation button */}
+            <button
+              onClick={() => setIsMobileNavOpen(true)}
+              className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border-light)] text-sm text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors"
+              aria-label="Open course navigation"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+              <span className="hidden sm:inline">Contents</span>
+            </button>
+            
             <button
               onClick={() => navigate('/')}
-              className="flex items-center gap-2 text-sm text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors"
+              className="hidden lg:flex items-center gap-2 text-sm text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -138,15 +252,15 @@ export default function CoursePage() {
 
           {/* Title Section */}
           <div className="animate-fade-in-up">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 leading-tight" style={{ fontFamily: 'var(--font-display)' }}>
               {course.title}
             </h1>
-            <p className="text-lg text-[var(--text-secondary)] max-w-2xl mb-6 leading-relaxed">
+            <p className="text-base md:text-lg text-[var(--text-secondary)] max-w-2xl mb-6 leading-relaxed">
               {course.description}
             </p>
 
             {/* Metadata Badges */}
-            <div className="flex flex-wrap gap-3 mb-6">
+            <div className="flex flex-wrap gap-2 md:gap-3 mb-6">
               {course.metadata?.level && (
                 <span className="badge badge-primary">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -179,7 +293,7 @@ export default function CoursePage() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-[var(--text-muted)]">Prerequisites:</span>
                 {course.metadata.prerequisites.map((prereq, index) => (
-                  <span key={index} className="text-xs px-2 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]">
+                  <span key={index} className="text-xs px-2 py-1 md:px-3 md:py-1.5 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]">
                     {prereq}
                   </span>
                 ))}
@@ -457,6 +571,17 @@ export default function CoursePage() {
           </main>
         </div>
       </div>
+
+      {/* Mobile Course Navigation */}
+      <MobileCourseNav
+        course={course}
+        selectedModule={selectedModule}
+        selectedLesson={selectedLesson}
+        onModuleSelect={setSelectedModule}
+        onLessonSelect={setSelectedLesson}
+        isOpen={isMobileNavOpen}
+        onClose={() => setIsMobileNavOpen(false)}
+      />
     </div>
   );
 }

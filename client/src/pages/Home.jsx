@@ -98,41 +98,41 @@ export default function Home() {
       </div>
 
       {/* Hero Section */}
-      <div className="relative pt-16 pb-12 px-6">
+      <div className="relative pt-20 pb-8 md:pt-16 md:pb-12 px-4 md:px-6">
         <div className="max-w-3xl mx-auto text-center">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-light)] mb-8 animate-fade-in">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-light)] mb-6 md:mb-8 animate-fade-in">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--accent-primary)] opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--accent-primary)]"></span>
             </span>
-            <span className="text-sm font-medium text-[var(--text-secondary)]">AI-Powered Learning</span>
+            <span className="text-xs md:text-sm font-medium text-[var(--text-secondary)]">AI-Powered Learning</span>
           </div>
 
           {/* Main heading */}
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 animate-fade-in-up">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-4 md:mb-6 animate-fade-in-up">
             <span className="text-gradient">Learn Anything,</span>
             <br />
             <span className="text-[var(--text-primary)]">Deeply.</span>
           </h1>
 
           {/* Subtitle */}
-          <p className="text-lg md:text-xl text-[var(--text-secondary)] max-w-xl mx-auto mb-10 leading-relaxed animate-fade-in-up stagger-1">
-            Describe any topic and I'll create a comprehensive course with lessons, 
+          <p className="text-base md:text-lg lg:text-xl text-[var(--text-secondary)] max-w-xl mx-auto mb-8 md:mb-10 leading-relaxed animate-fade-in-up stagger-1">
+            Describe any topic and I'll create a comprehensive course with lessons,
             quizzes, and resources tailored to your learning journey.
           </p>
         </div>
       </div>
 
       {/* Main Form Section */}
-      <div className="relative px-6 pb-16" ref={formRef}>
+      <div className="relative px-4 md:px-6 pb-12 md:pb-16" ref={formRef}>
         <div className="max-w-2xl mx-auto">
           <form onSubmit={handleSubmit} className="relative">
             {/* Card with glow effect */}
             <div className="relative group">
               <div className="absolute -inset-1 bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-500" />
               <div className="relative card-elevated p-1 rounded-2xl">
-                <div className="bg-[var(--bg-card)] rounded-xl p-2">
+                <div className="bg-[var(--bg-card)] rounded-xl p-1.5 md:p-2">
                   {/* Textarea */}
                   <div className="relative">
                     <textarea
@@ -143,23 +143,23 @@ export default function Home() {
                       placeholder="What do you want to learn today?"
                       rows={3}
                       disabled={loading}
-                      className="w-full px-6 py-5 text-lg bg-transparent border-none resize-none focus:ring-0 placeholder-[var(--text-muted)] text-[var(--text-primary)] disabled:opacity-50"
+                      className="w-full px-4 md:px-6 py-4 md:py-5 text-base md:text-lg bg-transparent border-none resize-none focus:ring-0 placeholder-[var(--text-muted)] text-[var(--text-primary)] disabled:opacity-50"
                       style={{ fontFamily: 'var(--font-display)' }}
                     />
                   </div>
 
                   {/* Divider */}
-                  <div className="h-px bg-gradient-to-r from-transparent via-[var(--border-medium)] to-transparent mx-4" />
+                  <div className="h-px bg-gradient-to-r from-transparent via-[var(--border-medium)] to-transparent mx-2 md:mx-4" />
 
                   {/* Submit row */}
-                  <div className="flex items-center justify-between px-4 py-3">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-3 md:px-4 py-3">
                     <div className="text-sm text-[var(--text-muted)]">
                       Press <kbd className="px-2 py-1 rounded bg-[var(--bg-tertiary)] border border-[var(--border-light)] font-mono text-xs">Enter</kbd> to generate
                     </div>
                     <button
                       type="submit"
                       disabled={loading || !topic.trim()}
-                      className="btn btn-primary px-6 py-3 text-base disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                      className="btn btn-primary w-full sm:w-auto px-5 md:px-6 py-3 text-sm md:text-base disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                     >
                       {loading ? (
                         <>
@@ -246,15 +246,15 @@ export default function Home() {
       </div>
 
       {/* Example Topics Section */}
-      <div className="relative px-6 pb-20">
+      <div className="relative px-4 md:px-6 pb-16 md:pb-20">
         <div className="max-w-5xl mx-auto">
           {/* Section header */}
-          <div className="text-center mb-10">
-            <div className="ornament mb-4">
+          <div className="text-center mb-8 md:mb-10">
+            <div className="ornament mb-3 md:mb-4">
               <span className="decorative-dot" />
             </div>
-            <h2 className="text-2xl md:text-3xl font-bold mb-3">Explore Topics</h2>
-            <p className="text-[var(--text-secondary)]">Click any topic below to start learning</p>
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold mb-2 md:mb-3">Explore Topics</h2>
+            <p className="text-sm md:text-base text-[var(--text-secondary)]">Click any topic below to start learning</p>
           </div>
 
           {/* Topics grid */}
