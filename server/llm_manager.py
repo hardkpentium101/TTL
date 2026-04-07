@@ -175,8 +175,9 @@ class OpenRouterProvider(LLMProvider):
         # Models to try in priority order (tested & working)
         self.models = [
             "qwen/qwen3.6-plus:free",                   # Best quality & speed
-            "arcee-ai/trinity-large-preview:free",      # Good quality (~41s)
-            "nvidia/nemotron-3-super-120b-a12b:free",   # Best reasoning (~40s)
+            "stepfun/step-3.5-flash:free",              # First fallback (~27s)
+            "arcee-ai/trinity-large-preview:free",      # Second fallback (~41s)
+            "nvidia/nemotron-3-super-120b-a12b:free",   # Third fallback (~40s)
         ]
     
     def generate_course(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
