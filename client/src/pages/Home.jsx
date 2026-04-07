@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { generateCourseAsync, waitForCourse } from '../utils/api';
+import { generateCourseAsync, getCourseStatus, getCourseResult } from '../utils/api';
 import { refreshCoursesEvent } from '../events';
 
 const EXAMPLE_TOPICS = [
@@ -21,6 +21,25 @@ const GenerationSteps = [
   { id: 6, text: 'Finalizing content', icon: '✨' },
 ];
 
+const STORAGE_KEY = 'ttl_generation_state';
+
+function saveGenerationState(state) {
+  if (state) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } else {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+}
+
+function loadGenerationState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function Home() {
   const [topic, setTopic] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,9 +50,110 @@ export default function Home() {
   const inputRef = useRef(null);
   const formRef = useRef(null);
 
+  // Restore generation state on mount
   useEffect(() => {
-    inputRef.current?.focus();
+    const savedState = loadGenerationState();
+    if (savedState && savedState.job_id && savedState.topic) {
+      setTopic(savedState.topic);
+      setLoading(true);
+      setProgress(savedState.progress || 0);
+      setCurrentStep(Math.min(Math.floor((savedState.progress || 0) / 17), 5));
+
+      // Resume polling for the job
+      resumeGeneration(savedState.job_id, savedState.topic);
+    } else {
+      inputRef.current?.focus();
+    }
   }, []);
+
+  const resumeGeneration = async (jobId, savedTopic) => {
+    try {
+      const status = await getCourseStatus(jobId);
+
+      if (status.status === 'completed') {
+        setProgress(100);
+        setCurrentStep(5);
+
+        const result = await getCourseResult(jobId);
+        const course = result.data;
+        saveGenerationState(null);
+
+        refreshCoursesEvent.dispatchEvent(new Event('refresh'));
+
+        setTimeout(() => {
+          const courseData = course.course || course;
+          const courseTitle = courseData.title || 'Generated Course';
+          navigate(`/course/${encodeURIComponent(courseTitle)}`, {
+            state: { course: courseData },
+          });
+        }, 800);
+      } else if (status.status === 'failed') {
+        setError(status.message || 'Course generation failed');
+        saveGenerationState(null);
+        setLoading(false);
+      } else {
+        // Still running, continue polling
+        setProgress(status.progress || 0);
+        setCurrentStep(Math.min(Math.floor((status.progress || 0) / 17), 5));
+        pollForCompletion(jobId, savedTopic);
+      }
+    } catch (err) {
+      console.error('Resume generation error:', err);
+      // Job might not exist, clear state
+      saveGenerationState(null);
+      setLoading(false);
+      inputRef.current?.focus();
+    }
+  };
+
+  const pollForCompletion = (jobId, savedTopic) => {
+    const poll = async () => {
+      try {
+        const status = await getCourseStatus(jobId);
+        const prog = status.progress || 0;
+        setProgress(prog);
+        setCurrentStep(Math.min(Math.floor(prog / 17), 5));
+
+        // Persist progress for refresh recovery
+        saveGenerationState({
+          job_id: jobId,
+          topic: savedTopic,
+          progress: prog,
+        });
+
+        if (status.status === 'completed') {
+          setProgress(100);
+          setCurrentStep(5);
+
+          const result = await getCourseResult(jobId);
+          const course = result.data;
+          saveGenerationState(null);
+
+          refreshCoursesEvent.dispatchEvent(new Event('refresh'));
+
+          setTimeout(() => {
+            const courseData = course.course || course;
+            const courseTitle = courseData.title || 'Generated Course';
+            navigate(`/course/${encodeURIComponent(courseTitle)}`, {
+              state: { course: courseData },
+            });
+          }, 800);
+        } else if (status.status === 'failed') {
+          setError(status.message || 'Course generation failed');
+          saveGenerationState(null);
+          setLoading(false);
+        } else {
+          setTimeout(poll, 20000);
+        }
+      } catch (err) {
+        console.error('Poll error:', err);
+        saveGenerationState(null);
+        setLoading(false);
+      }
+    };
+
+    poll();
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,34 +167,20 @@ export default function Home() {
     try {
       const { job_id } = await generateCourseAsync(topic);
 
-      const course = await waitForCourse(
+      // Save initial state
+      saveGenerationState({
         job_id,
-        (status) => {
-          const prog = status.progress || 0;
-          setProgress(prog);
-          const step = Math.min(Math.floor(prog / 17), 5);
-          setCurrentStep(step);
-        },
-        20000  // Poll every 20 seconds
-      );
+        topic: topic.trim(),
+        progress: 0,
+      });
 
-      setProgress(100);
-      setCurrentStep(5);
-
-      refreshCoursesEvent.dispatchEvent(new Event('refresh'));
-
-      setTimeout(() => {
-        const courseData = course.course || course;
-        const courseTitle = courseData.title || 'Generated Course';
-        navigate(`/course/${encodeURIComponent(courseTitle)}`, {
-          state: { course: courseData },
-        });
-      }, 800);
+      pollForCompletion(job_id, topic.trim());
 
     } catch (err) {
       console.error('Course generation error:', err);
       setError(err.response?.data?.detail || err.message || 'Failed to generate course');
       setLoading(false);
+      saveGenerationState(null);
     }
   };
 
