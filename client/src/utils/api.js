@@ -137,7 +137,7 @@ export const getCourseResult = async (jobId) => {
 };
 
 // Poll for completion
-export const waitForCourse = async (jobId, onProgress = null, interval = 20000) => {
+export const waitForCourse = async (jobId, onProgress = null, interval = 10000) => {
   console.log(`[API] waitForCourse polling interval: ${interval}ms (${interval/1000}s)`);
   return new Promise((resolve, reject) => {
     const poll = async () => {

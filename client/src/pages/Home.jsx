@@ -143,7 +143,7 @@ export default function Home() {
           saveGenerationState(null);
           setLoading(false);
         } else {
-          setTimeout(poll, 20000);
+          setTimeout(poll, 10000);
         }
       } catch (err) {
         console.error('Poll error:', err);
