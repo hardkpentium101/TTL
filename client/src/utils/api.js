@@ -137,7 +137,7 @@ export const getCourseResult = async (jobId) => {
 };
 
 // Poll for completion
-export const waitForCourse = async (jobId, onProgress = null, interval = 2000) => {
+export const waitForCourse = async (jobId, onProgress = null, interval = 20000) => {
   return new Promise((resolve, reject) => {
     const poll = async () => {
       try {
