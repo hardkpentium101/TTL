@@ -174,7 +174,7 @@ class OpenRouterProvider(LLMProvider):
         self.base_url = "https://openrouter.ai/api/v1"
         # Models to try in priority order (tested & working)
         self.models = [
-            "stepfun/step-3.5-flash:free",              # Fastest working (~27s)
+            "qwen/qwen3.6-plus:free",                   # Best quality & speed
             "arcee-ai/trinity-large-preview:free",      # Good quality (~41s)
             "nvidia/nemotron-3-super-120b-a12b:free",   # Best reasoning (~40s)
         ]
