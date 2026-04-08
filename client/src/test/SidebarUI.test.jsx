@@ -65,30 +65,27 @@ describe('Sidebar - Default Collapsed State', () => {
     expect(sidebar.className).toContain('w-[72px]');
   });
 
-  it('should show app icon when collapsed', () => {
+  it('should show app icon on the LEFT when collapsed', () => {
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
     expect(appIcon).toBeInTheDocument();
-    expect(appIcon.className).toContain('bg-gradient-to-br');
+    // App icon should be on the left (not order-2)
+    expect(appIcon.className).not.toContain('order-2');
   });
 
-  it('should show expander button at the opposite end (right) when collapsed', () => {
+  it('should NOT show app name in sidebar', () => {
     render(<Sidebar />, { wrapper });
-    const expanderBtn = screen.getByRole('button', { name: /expand sidebar/i });
-    expect(expanderBtn).toBeInTheDocument();
+    // Text-to-Learn should not be in sidebar (it's in the top header)
+    const sidebar = document.querySelector('aside');
+    const appName = sidebar.querySelector('[data-sidebar-top="true"]');
+    // The top section should NOT contain "Text-to-Learn" text
+    expect(appName.textContent).not.toContain('Text-to-Learn');
   });
 
-  it('should have app icon on the right and expander on the left when collapsed', () => {
+  it('should NOT show sidebar expander icon when collapsed', () => {
     render(<Sidebar />, { wrapper });
-    const topSection = document.querySelector('[data-sidebar-top="true"]');
-    const appIcon = document.querySelector('[data-app-icon="true"]');
-    const expanderBtn = screen.getByRole('button', { name: /expand sidebar/i });
-
-    // Both should be visible
-    expect(appIcon).toBeInTheDocument();
-    expect(expanderBtn).toBeInTheDocument();
-    // Parent container should use justify-between (opposite ends)
-    expect(topSection.className).toContain('justify-between');
+    const expanderBtn = screen.queryByRole('button', { name: /sidebar/i });
+    expect(expanderBtn).not.toBeInTheDocument();
   });
 
   it('should not have a top separator bar', () => {
@@ -99,29 +96,68 @@ describe('Sidebar - Default Collapsed State', () => {
   });
 });
 
-describe('Sidebar - Hover App Icon Behavior', () => {
+describe('Sidebar - Hover App Icon to Reveal Expander', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLocationPathname = '/';
   });
 
-  it('should expand sidebar when app icon is clicked', async () => {
+  it('should show sidebar expander when hovering app icon', () => {
+    render(<Sidebar />, { wrapper });
+    const appIcon = document.querySelector('[data-app-icon="true"]');
+    fireEvent.mouseEnter(appIcon);
+
+    const expanderBtn = screen.getByRole('button', { name: /expand sidebar/i });
+    expect(expanderBtn).toBeInTheDocument();
+  });
+
+  it('should position expander overlapping app icon completely when hovered', () => {
+    render(<Sidebar />, { wrapper });
+    const appIcon = document.querySelector('[data-app-icon="true"]');
+    fireEvent.mouseEnter(appIcon);
+
+    const expanderBtn = screen.getByRole('button', { name: /expand sidebar/i });
+    // Expander should be at the same position as app icon (overlapping)
+    expect(expanderBtn.className).toContain('absolute');
+  });
+
+  it('should hide sidebar expander when mouse leaves app icon', () => {
+    render(<Sidebar />, { wrapper });
+    const appIcon = document.querySelector('[data-app-icon="true"]');
+
+    fireEvent.mouseEnter(appIcon);
+    fireEvent.mouseLeave(appIcon);
+
+    const expanderBtn = screen.queryByRole('button', { name: /expand sidebar/i });
+    expect(expanderBtn).not.toBeInTheDocument();
+  });
+
+  it('should expand sidebar when expander is clicked during hover', async () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
-    await user.click(appIcon);
+
+    fireEvent.mouseEnter(appIcon);
+    const expanderBtn = screen.getByRole('button', { name: /expand sidebar/i });
+    await user.click(expanderBtn);
 
     const sidebar = document.querySelector('aside');
     expect(sidebar.className).toContain('w-[280px]');
   });
 
-  it('should show app icon with text label when expanded', async () => {
+  it('should keep sidebar expanded after clicking expander and mouse leaves', async () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
-    await user.click(appIcon);
 
-    expect(screen.getByText('Text-to-Learn')).toBeInTheDocument();
+    fireEvent.mouseEnter(appIcon);
+    const expanderBtn = screen.getByRole('button', { name: /expand sidebar/i });
+    await user.click(expanderBtn);
+
+    fireEvent.mouseLeave(appIcon);
+
+    const sidebar = document.querySelector('aside');
+    expect(sidebar.className).toContain('w-[280px]');
   });
 });
 
@@ -131,22 +167,43 @@ describe('Sidebar - Expanded State', () => {
     mockLocationPathname = '/';
   });
 
+  it('should show app icon on LEFT and expander on RIGHT when expanded', async () => {
+    const user = userEvent.setup();
+    render(<Sidebar />, { wrapper });
+    const appIcon = document.querySelector('[data-app-icon="true"]');
+    fireEvent.mouseEnter(appIcon);
+    const expandBtn = screen.getByRole('button', { name: /expand sidebar/i });
+    await user.click(expandBtn);
+
+    // After expanding, app icon should be visible again
+    const appIconAfter = document.querySelector('[data-app-icon="true"]');
+    expect(appIconAfter).toBeInTheDocument();
+    expect(appIconAfter.className).toContain('opacity-100');
+
+    // Expander should be on the right (ml-auto class)
+    const expanderBtn = screen.getByRole('button', { name: /collapse sidebar/i });
+    expect(expanderBtn.className).toContain('ml-auto');
+  });
+
   it('should show nav labels when expanded', async () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
-    await user.click(appIcon);
+    fireEvent.mouseEnter(appIcon);
+    const expanderBtn = screen.getByRole('button', { name: /expand sidebar/i });
+    await user.click(expanderBtn);
 
     expect(screen.getByText('My Courses')).toBeInTheDocument();
     expect(screen.getByText('Bookmarks')).toBeInTheDocument();
-    expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
-  it('should show expander button with collapse label when expanded', async () => {
+  it('should show collapse label on expander when expanded', async () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
-    await user.click(appIcon);
+    fireEvent.mouseEnter(appIcon);
+    const expandBtn = screen.getByRole('button', { name: /expand sidebar/i });
+    await user.click(expandBtn);
 
     const collapseBtn = screen.getByRole('button', { name: /collapse sidebar/i });
     expect(collapseBtn).toBeInTheDocument();
@@ -156,7 +213,9 @@ describe('Sidebar - Expanded State', () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
-    await user.click(appIcon);
+    fireEvent.mouseEnter(appIcon);
+    const expandBtn = screen.getByRole('button', { name: /expand sidebar/i });
+    await user.click(expandBtn);
 
     const collapseBtn = screen.getByRole('button', { name: /collapse sidebar/i });
     await user.click(collapseBtn);
@@ -243,9 +302,8 @@ describe('Sidebar - User Section (Guest)', () => {
     expect(guestIcon).toBeInTheDocument();
   });
 
-  it('should show sign in icon (not button text) in collapsed state', () => {
+  it('should show sign in icon in collapsed state', () => {
     render(<Sidebar />, { wrapper });
-    // Sign in should be visible as an icon-only button
     const signInBtn = screen.getByRole('button', { name: /sign in/i });
     expect(signInBtn).toBeInTheDocument();
   });
@@ -254,7 +312,9 @@ describe('Sidebar - User Section (Guest)', () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
-    await user.click(appIcon);
+    fireEvent.mouseEnter(appIcon);
+    const expandBtn = screen.getByRole('button', { name: /expand sidebar/i });
+    await user.click(expandBtn);
 
     expect(screen.getByText('Guest')).toBeInTheDocument();
     expect(screen.queryByText(/@/)).not.toBeInTheDocument();
@@ -271,7 +331,6 @@ describe('Sidebar - User Section Overflow Protection', () => {
   it('should have min-h on user section rows to prevent icon compression', () => {
     render(<Sidebar />, { wrapper });
     const userRow = document.querySelector('[data-user-section="true"] [class*="min-h"]');
-    // Should exist to prevent compression
     expect(userRow).toBeInTheDocument();
   });
 

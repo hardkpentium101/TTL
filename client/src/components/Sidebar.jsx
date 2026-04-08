@@ -46,6 +46,7 @@ const NAV_ITEMS = [
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isHoveringAppArea, setIsHoveringAppArea] = useState(false);
   const [userCourses, setUserCourses] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [myCoursesOpen, setMyCoursesOpen] = useState(false);
@@ -83,6 +84,7 @@ export default function Sidebar() {
     const handleResize = () => {
       if (window.innerWidth < 768) {
         setIsCollapsed(true);
+        setIsHoveringAppArea(false);
       }
     };
     handleResize();
@@ -115,7 +117,14 @@ export default function Sidebar() {
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
+    setIsHoveringAppArea(false);
   };
+
+  // Expander visibility:
+  // - Collapsed + not hovering: hidden
+  // - Collapsed + hovering app area: visible (emerges on right)
+  // - Expanded: always visible (on right)
+  const showExpander = !isCollapsed || isHoveringAppArea;
 
   return (
     <>
@@ -125,45 +134,46 @@ export default function Sidebar() {
           isCollapsed ? 'w-[72px]' : 'w-[280px]'
         }`}
       >
-        {/* Top Section - Expander (left) + App Icon (right) at opposite ends */}
+        {/* Top Section - App Icon (left) | Expander (overlaps app icon on hover, right when expanded) */}
         <div
           data-sidebar-top="true"
-          className="h-16 flex items-center justify-between px-3 flex-shrink-0"
+          className="h-16 flex items-center px-3 flex-shrink-0 relative"
+          onMouseEnter={() => {
+            if (isCollapsed) setIsHoveringAppArea(true);
+          }}
+          onMouseLeave={() => {
+            setIsHoveringAppArea(false);
+          }}
         >
-          {/* Expander Button - LEFT side */}
-          <button
+          {/* App Icon - LEFT side */}
+          <div
+            data-app-icon="true"
+            className={`w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center shadow-md cursor-pointer hover:shadow-lg transition-all duration-300 ${
+              isHoveringAppArea ? 'opacity-0 scale-75' : 'opacity-100 scale-100'
+            }`}
             onClick={toggleSidebar}
-            className="w-10 h-10 rounded-xl border border-[var(--border-light)] bg-[var(--bg-card)] hover:bg-[var(--bg-tertiary)] transition-all duration-300 flex items-center justify-center group flex-shrink-0"
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {/* Sidebar icon - rectangle with line at 30% */}
-            <svg className="w-4 h-4 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors duration-300" viewBox="0 0 24 24" fill="none">
-              <rect x="2" y="4" width="20" height="16" rx="3" stroke="currentColor" strokeWidth="2" />
-              <line x1="9" y1="4" x2="9" y2="20" stroke="currentColor" strokeWidth="2" />
-            </svg>
-          </button>
-
-          {/* App Icon - RIGHT side, with text when expanded */}
-          <div className="flex items-center gap-2 flex-shrink-0 order-2">
-            <div
-              data-app-icon="true"
-              className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center shadow-md cursor-pointer hover:shadow-lg transition-shadow duration-300"
-              onClick={toggleSidebar}
-              title={isCollapsed ? 'Expand sidebar' : undefined}
-            >
-              <span className="text-white text-lg font-bold">T</span>
-            </div>
-            {/* App name - only when expanded */}
-            {!isCollapsed && (
-              <span
-                className="text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap overflow-hidden transition-all duration-300"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                Text-to-Learn
-              </span>
-            )}
+            <span className="text-white text-lg font-bold">T</span>
           </div>
+
+          {/* Sidebar Expander - slides over app icon on hover, moves to right when expanded */}
+          {showExpander && (
+            <button
+              onClick={toggleSidebar}
+              className={`w-10 h-10 rounded-xl border border-[var(--border-light)] bg-[var(--bg-card)] hover:bg-[var(--bg-tertiary)] transition-all duration-300 flex items-center justify-center group flex-shrink-0 ${
+                isCollapsed
+                  ? 'absolute left-3 opacity-100'  // Overlapping app icon position
+                  : 'ml-auto opacity-100'          // Right side when expanded
+              }`}
+              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              <svg className="w-4 h-4 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors duration-300" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="4" width="20" height="16" rx="3" stroke="currentColor" strokeWidth="2" />
+                <line x1="9" y1="4" x2="9" y2="20" stroke="currentColor" strokeWidth="2" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Navigation */}
@@ -257,10 +267,10 @@ export default function Sidebar() {
           ))}
         </nav>
 
-        {/* User Section - no border-t, overflow padding */}
+        {/* User Section - no border-t, moved left by 10px */}
         <div
           data-user-section="true"
-          className="p-3 flex-shrink-0 overflow-hidden"
+          className="px-2 py-3 flex-shrink-0 overflow-hidden"
         >
           {isLoading ? (
             <div className="flex items-center gap-3 px-3 py-2 min-h-[48px]">
