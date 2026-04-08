@@ -9,7 +9,7 @@ const NAV_ITEMS = [
     path: '/',
     label: 'Home',
     icon: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
       </svg>
     ),
@@ -18,7 +18,7 @@ const NAV_ITEMS = [
     path: '/my-courses',
     label: 'My Courses',
     icon: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
       </svg>
     ),
@@ -27,7 +27,7 @@ const NAV_ITEMS = [
     path: '/bookmarks',
     label: 'Bookmarks',
     icon: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
       </svg>
     ),
@@ -36,7 +36,7 @@ const NAV_ITEMS = [
     path: '/settings',
     label: 'Settings',
     icon: (
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
@@ -128,10 +128,10 @@ export default function Sidebar() {
           isCollapsed ? 'w-[72px]' : 'w-[280px]'
         }`}
       >
-        {/* Top Section */}
+        {/* Top Section - h-16, app icon w-10 h-10 to match nav row height */}
         <div
           data-sidebar-top="true"
-          className="h-16 flex items-center px-4 flex-shrink-0 relative"
+          className="h-16 flex items-center px-3 flex-shrink-0 relative"
           onMouseEnter={() => {
             if (isCollapsed) setIsHoveringAppArea(true);
           }}
@@ -139,24 +139,24 @@ export default function Sidebar() {
             setIsHoveringAppArea(false);
           }}
         >
-          {/* App Icon - LEFT */}
+          {/* App Icon - LEFT, w-10 h-10 matching nav row height */}
           <div
             data-app-icon="true"
-            className={`w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center cursor-pointer transition-all duration-300 flex-shrink-0 ${
+            className={`w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center cursor-pointer transition-all duration-300 flex-shrink-0 ${
               isHoveringAppArea ? 'opacity-0 scale-75' : 'opacity-100 scale-100'
             }`}
             onClick={toggleSidebar}
           >
-            <span className="text-white text-sm font-bold">T</span>
+            <span className="text-white text-base font-bold">T</span>
           </div>
 
           {/* Sidebar Expander - overlays app icon on hover, right side when expanded */}
           {showExpander && (
             <button
               onClick={toggleSidebar}
-              className={`w-8 h-8 flex items-center justify-center transition-all duration-300 flex-shrink-0 text-[var(--text-secondary)] hover:text-[var(--accent-primary)] ${
+              className={`w-10 h-10 flex items-center justify-center transition-all duration-300 flex-shrink-0 text-[var(--text-secondary)] hover:text-[var(--accent-primary)] ${
                 isCollapsed
-                  ? 'absolute left-4'
+                  ? 'absolute left-3'
                   : 'ml-auto'
               }`}
               aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -170,8 +170,8 @@ export default function Sidebar() {
           )}
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        {/* Navigation - each row h-10 (40px) */}
+        <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
           {NAV_ITEMS.map((item, index) => (
             <div key={item.path}>
               <Link
@@ -182,14 +182,14 @@ export default function Sidebar() {
                     setMyCoursesOpen(!myCoursesOpen);
                   }
                 }}
-                className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group ${
+                className={`flex items-center gap-3 px-3 h-10 rounded-lg transition-all duration-200 group ${
                   isActive(item.path) && item.path !== '/my-courses'
                     ? 'bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-primary-dark)] text-white shadow-sm'
                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
                 }`}
                 title={isCollapsed ? item.label : undefined}
               >
-                <span className={`w-6 h-6 flex-shrink-0 transition-colors duration-200 ${
+                <span className={`w-5 h-5 flex-shrink-0 transition-colors duration-200 ${
                   isActive(item.path) && item.path !== '/my-courses'
                     ? 'text-white'
                     : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'
@@ -261,18 +261,18 @@ export default function Sidebar() {
           ))}
         </nav>
 
-        {/* User Section */}
+        {/* User Section - icons w-10 h-10 matching nav rows */}
         <div
           data-user-section="true"
-          className="px-4 py-3 flex-shrink-0 overflow-hidden"
+          className="px-3 py-3 flex-shrink-0 overflow-hidden"
         >
           {isLoading ? (
             <div className="flex items-center gap-3 py-2 min-h-[40px]">
-              <div className="w-8 h-8 rounded-full skeleton flex-shrink-0" />
+              <div className="w-10 h-10 rounded-full skeleton flex-shrink-0" />
               {!isCollapsed && (
                 <div className="flex-1 min-w-0">
-                  <div className="h-3 skeleton rounded w-20 mb-1" />
-                  <div className="h-2 skeleton rounded w-14" />
+                  <div className="h-4 skeleton rounded w-24 mb-1" />
+                  <div className="h-3 skeleton rounded w-16" />
                 </div>
               )}
             </div>
@@ -280,38 +280,38 @@ export default function Sidebar() {
             <div className="space-y-1">
               <div className="flex items-center gap-3 py-2 min-h-[40px]">
                 <img
-                  src={user.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=c4703c&color=fff&size=64`}
+                  src={user.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=c4703c&color=fff&size=80`}
                   alt={user.name || 'User'}
-                  className="w-8 h-8 rounded-full flex-shrink-0 object-cover ring-1 ring-[var(--border-light)]"
-                  style={{ minWidth: '32px', maxWidth: '32px' }}
+                  className="w-10 h-10 rounded-full flex-shrink-0 object-cover ring-1 ring-[var(--border-light)]"
+                  style={{ minWidth: '40px', maxWidth: '40px' }}
                   onError={(e) => {
-                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=c4703c&color=fff&size=64`;
+                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=c4703c&color=fff&size=80`;
                   }}
                 />
                 {!isCollapsed && (
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-xs text-[var(--text-primary)] truncate">{user.name}</p>
-                    <p className="text-[10px] text-[var(--text-muted)] truncate">{user.email}</p>
+                    <p className="font-medium text-sm text-[var(--text-primary)] truncate">{user.name}</p>
+                    <p className="text-xs text-[var(--text-muted)] truncate">{user.email}</p>
                   </div>
                 )}
               </div>
               {isCollapsed ? (
                 <button
                   onClick={() => logout()}
-                  className="w-full p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--error)] transition-colors flex items-center justify-center"
+                  className="w-full h-10 rounded-lg text-[var(--text-secondary)] hover:text-[var(--error)] transition-colors flex items-center justify-center"
                   title="Sign Out"
                   aria-label="Sign Out"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                   </svg>
                 </button>
               ) : (
                 <button
                   onClick={() => logout()}
-                  className="w-full flex items-center gap-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--error)] transition-colors"
+                  className="w-full flex items-center gap-3 h-10 text-sm text-[var(--text-secondary)] hover:text-[var(--error)] transition-colors"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                   </svg>
                   Sign Out
@@ -323,8 +323,8 @@ export default function Sidebar() {
               <div className="flex items-center gap-3 py-2 min-h-[40px]">
                 <div
                   data-guest-icon="true"
-                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[var(--text-muted)]"
-                  style={{ minWidth: '32px', maxWidth: '32px' }}
+                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-[var(--text-muted)]"
+                  style={{ minWidth: '40px', maxWidth: '40px' }}
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -332,27 +332,27 @@ export default function Sidebar() {
                 </div>
                 {!isCollapsed && (
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-xs text-[var(--text-primary)]">Guest</p>
+                    <p className="font-medium text-sm text-[var(--text-primary)]">Guest</p>
                   </div>
                 )}
               </div>
               {isCollapsed ? (
                 <button
                   onClick={() => login()}
-                  className="w-full p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors flex items-center justify-center"
+                  className="w-full h-10 rounded-lg text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors flex items-center justify-center"
                   title="Sign In"
                   aria-label="Sign In"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </button>
               ) : (
                 <button
                   onClick={() => login()}
-                  className="w-full flex items-center gap-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors"
+                  className="w-full flex items-center gap-3 h-10 text-sm text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                   Sign In

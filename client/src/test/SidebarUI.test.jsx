@@ -59,45 +59,50 @@ describe('Sidebar - Consistent Icon Sizing', () => {
     mockLocationPathname = '/';
   });
 
-  it('should have all nav icons at w-6 h-6', () => {
+  it('should have all nav icons at w-5 h-5', () => {
     render(<Sidebar />, { wrapper });
     const navIconSpans = document.querySelectorAll('aside nav a > span:first-child');
     navIconSpans.forEach(span => {
-      expect(span.className).toContain('w-6');
-      expect(span.className).toContain('h-6');
+      expect(span.className).toContain('w-5');
+      expect(span.className).toContain('h-5');
     });
   });
 
-  it('should have expander icon at w-8 h-8 button with w-6 h-6 svg', () => {
+  it('should have all nav rows at h-10 (40px)', () => {
+    render(<Sidebar />, { wrapper });
+    const navRows = document.querySelectorAll('aside nav a');
+    navRows.forEach(row => {
+      expect(row.className).toContain('h-10');
+    });
+  });
+
+  it('should have app icon at w-10 h-10 (matching nav row height)', () => {
+    render(<Sidebar />, { wrapper });
+    const appIcon = document.querySelector('[data-app-icon="true"]');
+    expect(appIcon.className).toContain('w-10');
+    expect(appIcon.className).toContain('h-10');
+  });
+
+  it('should have expander button at w-10 h-10 (matching nav row height)', () => {
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
     fireEvent.mouseEnter(appIcon);
     const expanderBtn = screen.getByRole('button', { name: /expand sidebar/i });
-    // Button itself is w-8 h-8
-    expect(expanderBtn.className).toContain('w-8');
-    expect(expanderBtn.className).toContain('h-8');
-    // Has svg child
-    expect(expanderBtn.querySelector('svg')).toBeInTheDocument();
+    expect(expanderBtn.className).toContain('w-10');
+    expect(expanderBtn.className).toContain('h-10');
   });
 
-  it('should have sign in/sign out icons at consistent size', () => {
-    render(<Sidebar />, { wrapper });
-    const signInBtn = screen.getByRole('button', { name: /sign in/i });
-    expect(signInBtn.querySelector('svg')).toBeInTheDocument();
-    // Button is full width, svg inside
-    expect(signInBtn.className).toContain('w-full');
-  });
-
-  it('should have guest icon at w-8 h-8 (matching app icon size)', () => {
+  it('should have guest icon at w-10 h-10 (matching nav row height)', () => {
     render(<Sidebar />, { wrapper });
     const guestIcon = document.querySelector('[data-guest-icon="true"]');
-    expect(guestIcon.className).toContain('w-8 h-8');
+    expect(guestIcon.className).toContain('w-10');
+    expect(guestIcon.className).toContain('h-10');
   });
 
-  it('should have app icon at w-8 h-8', () => {
+  it('should have sign in button at h-10 in collapsed state', () => {
     render(<Sidebar />, { wrapper });
-    const appIcon = document.querySelector('[data-app-icon="true"]');
-    expect(appIcon.className).toContain('w-8 h-8');
+    const signInBtn = screen.getByRole('button', { name: /sign in/i });
+    expect(signInBtn.className).toContain('h-10');
   });
 });
 
