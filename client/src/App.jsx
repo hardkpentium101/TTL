@@ -9,6 +9,7 @@ import CoursePage from './pages/CoursePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import BookmarksPage from './pages/BookmarksPage';
 import MyCoursesPage from './pages/MyCoursesPage';
+import { SidebarProvider, SidebarMobileToggle } from './context/SidebarContext';
 
 function AuthSync() {
   const { isAuthenticated, syncUser } = useAuth();
@@ -24,44 +25,50 @@ function AuthSync() {
 
 function AppLayout() {
   return (
-    <div className="flex min-h-screen bg-[var(--bg-primary)]">
-      <Sidebar />
+    <SidebarProvider>
+      <div className="flex min-h-screen bg-[var(--bg-primary)]">
+        {/* Sidebar - sticky on desktop, fixed drawer on mobile */}
+        <Sidebar />
 
-      <main className="flex-1 flex flex-col min-h-screen ml-0 lg:ml-[72px] transition-all duration-300">
-        {/* Top Bar with App Name */}
-        <header className="sticky top-0 z-30 bg-[var(--bg-card)]/80 backdrop-blur-md border-b border-[var(--border-light)]">
-          <div className="flex items-center justify-end px-4 md:px-6 py-2">
-            <div className="flex items-center gap-2">
-              <h1 className="text-sm font-semibold text-[var(--text-secondary)] hidden sm:block" style={{ fontFamily: 'var(--font-display)' }}>
-                Text-to-Learn
-              </h1>
+        <main className="flex-1 flex flex-col min-h-screen transition-all duration-300">
+          {/* Top Bar with App Name + Mobile Menu Toggle */}
+          <header className="sticky top-0 z-30 bg-[var(--bg-card)]/80 backdrop-blur-md border-b border-[var(--border-light)]">
+            <div className="flex items-center justify-between px-4 md:px-6 py-2">
+              {/* Mobile sidebar toggle */}
+              <SidebarMobileToggle />
+
+              <div className="flex items-center gap-2 ml-auto">
+                <h1 className="text-sm font-semibold text-[var(--text-secondary)] hidden sm:block" style={{ fontFamily: 'var(--font-display)' }}>
+                  Text-to-Learn
+                </h1>
+              </div>
             </div>
+          </header>
+
+          <div className="flex-1 overflow-y-auto">
+            <Outlet />
           </div>
-        </header>
 
-        <div className="flex-1 overflow-y-auto">
-          <Outlet />
-        </div>
-
-        <footer className="border-t border-[var(--border-light)] py-6 mt-auto">
-          <div className="max-w-5xl mx-auto px-6">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">T</span>
+          <footer className="border-t border-[var(--border-light)] py-6 mt-auto">
+            <div className="max-w-5xl mx-auto px-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center">
+                    <span className="text-white text-sm font-bold">T</span>
+                  </div>
+                  <p className="text-sm text-[var(--text-muted)]">
+                    Text-to-Learn: AI-Powered Course Generator
+                  </p>
                 </div>
-                <p className="text-sm text-[var(--text-muted)]">
-                  Text-to-Learn: AI-Powered Course Generator
+                <p className="text-xs text-[var(--text-muted)]">
+                  Built for learning, one topic at a time.
                 </p>
               </div>
-              <p className="text-xs text-[var(--text-muted)]">
-                Built for learning, one topic at a time.
-              </p>
             </div>
-          </div>
-        </footer>
-      </main>
-    </div>
+          </footer>
+        </main>
+      </div>
+    </SidebarProvider>
   );
 }
 

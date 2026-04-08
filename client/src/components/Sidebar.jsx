@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getUserCourses } from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 import { refreshCoursesEvent } from '../events';
+import { useSidebar } from '../context/SidebarContext';
 
 const NAV_ITEMS = [
   {
     path: '/',
     label: 'Home',
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
       </svg>
     ),
@@ -18,7 +19,7 @@ const NAV_ITEMS = [
     path: '/my-courses',
     label: 'My Courses',
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
       </svg>
     ),
@@ -27,7 +28,7 @@ const NAV_ITEMS = [
     path: '/bookmarks',
     label: 'Bookmarks',
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
       </svg>
     ),
@@ -36,7 +37,7 @@ const NAV_ITEMS = [
     path: '/settings',
     label: 'Settings',
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
@@ -45,7 +46,6 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(true);
   const [isHoveringAppArea, setIsHoveringAppArea] = useState(false);
   const [userCourses, setUserCourses] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -53,7 +53,14 @@ export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, user, login, logout, isLoading } = useAuth();
+  const { isMobileOpen, closeMobile, isCollapsed, toggleCollapsed, setCollapsed } = useSidebar();
+  const sidebarRef = useRef(null);
+  const navScrollRef = useRef(null);
+  const firstFocusableRef = useRef(null);
 
+  const isActive = (path) => location.pathname === path;
+
+  // Fetch user courses
   useEffect(() => {
     const fetchCourses = async () => {
       if (!isAuthenticated) {
@@ -71,27 +78,87 @@ export default function Sidebar() {
     fetchCourses();
   }, [isAuthenticated, refreshTrigger]);
 
+  // Refresh listener
   useEffect(() => {
-    const handleRefresh = () => {
-      setRefreshTrigger(prev => prev + 1);
-    };
+    const handleRefresh = () => setRefreshTrigger(prev => prev + 1);
     refreshCoursesEvent.addEventListener('refresh', handleRefresh);
     return () => refreshCoursesEvent.removeEventListener('refresh', handleRefresh);
   }, []);
 
+  // When mobile drawer closes, reset hover state
+  useEffect(() => {
+    if (!isMobileOpen) setIsHoveringAppArea(false);
+  }, [isMobileOpen]);
+
+  // When viewport crosses the desktop breakpoint (lg = 1024px),
+  // force-collapse the sidebar and reset hover so it never starts
+  // expanded on desktop after being mobile.
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768) {
-        setIsCollapsed(true);
+      if (window.innerWidth < 1024) {
+        setCollapsed(true);
         setIsHoveringAppArea(false);
       }
     };
-    handleResize();
+    handleResize(); // run on mount
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [setCollapsed]);
 
-  const isActive = (path) => location.pathname === path;
+  // Click-outside-to-collapse (desktop only)
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      const sidebar = document.querySelector('aside[data-sidebar-desktop="true"]');
+      if (sidebar && !isCollapsed && !sidebar.contains(e.target)) {
+        setCollapsed(true);
+        setIsHoveringAppArea(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isCollapsed, setCollapsed]);
+
+  // Focus trap for mobile drawer
+  useEffect(() => {
+    if (!isMobileOpen || !sidebarRef.current) return;
+
+    const sidebar = sidebarRef.current;
+    const focusableElements = sidebar.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const firstFocusable = focusableElements[0];
+    const lastFocusable = focusableElements[focusableElements.length - 1];
+
+    firstFocusableRef.current = firstFocusable;
+
+    const handleTabKey = (e) => {
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey) {
+        if (document.activeElement === firstFocusable) {
+          e.preventDefault();
+          lastFocusable.focus();
+        }
+      } else {
+        if (document.activeElement === lastFocusable) {
+          e.preventDefault();
+          firstFocusable.focus();
+        }
+      }
+    };
+
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') closeMobile();
+    };
+
+    document.addEventListener('keydown', handleTabKey);
+    document.addEventListener('keydown', handleEscape);
+    setTimeout(() => firstFocusable?.focus(), 100);
+
+    return () => {
+      document.removeEventListener('keydown', handleTabKey);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isMobileOpen, closeMobile]);
 
   const handleCourseClick = async (course, e) => {
     e.stopPropagation();
@@ -111,256 +178,319 @@ export default function Sidebar() {
     } else {
       navigate(`/course/${encodeURIComponent(course.title)}`);
     }
+    closeMobile();
   };
 
-  const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
+  const toggleSidebar = useCallback(() => {
+    toggleCollapsed();
     setIsHoveringAppArea(false);
+  }, [toggleCollapsed]);
+
+  const toggleMyCourses = useCallback(() => {
+    setMyCoursesOpen(prev => !prev);
+  }, []);
+
+  /*
+   * Responsive strategy — two separate shells, CSS-driven:
+   *
+   *  Desktop (≥ 1024px / lg):  [data-sidebar-desktop]
+   *    - Visible, sticky, collapsible (280px ↔ 72px)
+   *    - Controlled by isCollapsed state
+   *
+   *  Mobile (< 1024px):         [data-sidebar-mobile]
+   *    - Fixed drawer, slides in from left
+   *    - Controlled by isMobileOpen state
+   *    - backdrop + focus trap
+   *
+   *  Only ONE shell is visible at any breakpoint. No JS breakpoint checks
+   *  for class switching — Tailwind handles it with `hidden lg:flex` and
+   *  `lg:hidden`.
+   */
+
+  const desktopClasses = `
+    hidden lg:flex flex-col h-screen
+    bg-[var(--sidebar-bg)] border-r-[var(--sidebar-border-width)] border-[var(--border-light)]
+    transition-all duration-[var(--sidebar-transition-speed)] ease-in-out overflow-hidden
+    ${isCollapsed ? 'w-[var(--sidebar-collapsed-width)]' : 'w-[var(--sidebar-width)]'}
+  `.trim();
+
+  const mobileClasses = `
+    lg:hidden fixed inset-y-0 left-0 z-50 flex flex-col h-screen
+    bg-[var(--sidebar-bg)] border-r-[var(--sidebar-border-width)] border-[var(--border-light)]
+    transform transition-transform duration-300 ease-in-out
+    ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
+  `.trim();
+
+  const navItemBase = `
+    flex items-center gap-3 px-[var(--sidebar-padding-x)] h-10
+    text-[var(--sidebar-text)] text-sm font-medium
+    transition-colors duration-[var(--sidebar-transition-speed)] ease-in-out
+    hover:bg-[var(--sidebar-hover-bg)] hover:text-[var(--sidebar-text-active)]
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)]
+  `.trim();
+
+  const navItemActive = `
+    bg-[var(--sidebar-active-bg)] text-[var(--sidebar-text-active)] font-semibold
+    border-l-[3px] border-l-[var(--sidebar-accent)]
+  `.trim();
+
+  /* ---- Shared render function for nav items (used by both shells) ---- */
+  const renderNavItem = (item, index, isMobileVariant) => {
+    const isItemActive = isActive(item.path);
+    const isMyCourses = item.path === '/my-courses';
+
+    return (
+      <div key={item.path} role="none">
+        <Link
+          to={item.path}
+          onClick={(e) => {
+            if (isMyCourses) {
+              e.preventDefault();
+              toggleMyCourses();
+            } else {
+              closeMobile();
+            }
+          }}
+          className={`${navItemBase} ${isItemActive && !isMyCourses ? navItemActive : ''}`}
+          title={isCollapsed && !isMyCourses ? item.label : undefined}
+          aria-current={isItemActive && !isMyCourses ? 'page' : undefined}
+          role="menuitem"
+        >
+          <span className="w-[18px] h-[18px] flex-shrink-0" aria-hidden="true">
+            {item.icon}
+          </span>
+          <span
+            className={`whitespace-nowrap overflow-hidden transition-all duration-[var(--sidebar-transition-speed)] ease-in-out ${
+              isCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'
+            }`}
+          >
+            {item.label}
+          </span>
+          {isMyCourses && !isCollapsed && (
+            <svg
+              className={`w-4 h-4 ml-auto transition-transform duration-200 flex-shrink-0 ${
+                myCoursesOpen ? 'rotate-90' : ''
+              }`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          )}
+        </Link>
+
+        {isMyCourses && myCoursesOpen && !isCollapsed && (
+          <div className="ml-4 mt-1 space-y-1" role="group" aria-label="Your courses">
+            {userCourses.length > 0 ? (
+              <>
+                {userCourses.slice(0, 5).map((course) => (
+                  <button
+                    key={course.id || course._id}
+                    onClick={(e) => handleCourseClick(course, e)}
+                    className="w-full text-left px-3 py-2 text-[var(--text-tertiary)] hover:bg-[var(--sidebar-hover-bg)] hover:text-[var(--text-primary)] transition-colors duration-[var(--sidebar-transition-speed)] text-sm rounded-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)]"
+                  >
+                    <div className="font-medium truncate">{course.title}</div>
+                    <div className="text-xs text-[var(--text-muted)] mt-0.5">
+                      {course.modules_count} modules
+                    </div>
+                  </button>
+                ))}
+                {userCourses.length > 5 && (
+                  <Link
+                    to="/my-courses"
+                    className="block px-3 py-2 text-xs text-[var(--accent-primary)] hover:underline transition-colors duration-[var(--sidebar-transition-speed)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-accent)]"
+                    onClick={closeMobile}
+                  >
+                    View all {userCourses.length} courses →
+                  </Link>
+                )}
+              </>
+            ) : (
+              <div className="px-3 py-4 text-center">
+                <p className="text-sm text-[var(--text-muted)] mb-2">No courses yet</p>
+                <Link
+                  to="/"
+                  className="text-xs text-[var(--accent-primary)] hover:underline transition-colors duration-[var(--sidebar-transition-speed)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sidebar-accent)]"
+                  onClick={closeMobile}
+                >
+                  Generate your first course
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+
+        {index < NAV_ITEMS.length - 1 && (
+          <div className="my-1 h-[1px] bg-[var(--border-light)] opacity-30" aria-hidden="true" />
+        )}
+      </div>
+    );
   };
 
-  const showExpander = !isCollapsed || isHoveringAppArea;
+  /* ---- Shared header (brand + collapse toggle) ---- */
+  const renderHeader = () => (
+    <div
+      className="h-16 flex items-center px-3 flex-shrink-0 relative border-b-[var(--sidebar-border-width)] border-[var(--border-light)] bg-[var(--sidebar-bg)]"
+      onMouseEnter={() => {
+        if (isCollapsed) setIsHoveringAppArea(true);
+      }}
+      onMouseLeave={() => setIsHoveringAppArea(false)}
+    >
+      <button
+        ref={firstFocusableRef}
+        className={`w-10 h-10 bg-[var(--accent-primary)] flex items-center justify-center flex-shrink-0 transition-all duration-200 ease-in-out hover:bg-[var(--accent-primary-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)] ${
+          isHoveringAppArea && !isCollapsed ? 'opacity-0 scale-75 pointer-events-none' : 'opacity-100 scale-100'
+        }`}
+        onClick={toggleSidebar}
+        aria-label={isCollapsed ? 'Expand sidebar' : 'App menu'}
+        aria-expanded={!isCollapsed}
+      >
+        <span className="text-white text-base font-bold" aria-hidden="true">T</span>
+      </button>
 
+      <button
+        onClick={toggleSidebar}
+        className="w-10 h-10 flex items-center justify-center transition-colors duration-200 text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--sidebar-hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)] ml-auto"
+        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-expanded={!isCollapsed}
+      >
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          {isCollapsed ? (
+            <path d="M7 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          ) : (
+            <path d="M17 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          )}
+        </svg>
+      </button>
+    </div>
+  );
+
+  /* ---- Shared nav area ---- */
+  const renderNav = () => (
+    <nav
+      ref={navScrollRef}
+      className="flex-1 px-3 py-3 space-y-1 overflow-y-auto overflow-x-hidden"
+      aria-label="Primary navigation"
+      role="menu"
+    >
+      {NAV_ITEMS.map((item, index) => renderNavItem(item, index))}
+    </nav>
+  );
+
+  /* ---- Shared user section ---- */
+  const renderUserSection = () => (
+    <div
+      className="px-3 py-3 flex-shrink-0 overflow-hidden border-t-[var(--sidebar-border-width)] border-[var(--border-light)] bg-[var(--sidebar-bg)]"
+      role="complementary"
+      aria-label="User section"
+    >
+      {isLoading ? (
+        <div className="flex items-center gap-3 py-2 min-h-[40px]">
+          <div className="w-10 h-10 bg-[var(--bg-tertiary)] flex-shrink-0 animate-pulse" aria-hidden="true" />
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0">
+              <div className="h-4 bg-[var(--bg-tertiary)] animate-pulse w-24 mb-1" aria-hidden="true" />
+              <div className="h-3 bg-[var(--bg-tertiary)] animate-pulse w-16" aria-hidden="true" />
+            </div>
+          )}
+        </div>
+      ) : isAuthenticated && user ? (
+        <div className="space-y-1">
+          <div className="flex items-center gap-3 py-2 min-h-[40px]">
+            <img
+              src={user.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=ff4d00&color=fff&size=80`}
+              alt={user.name || 'User'}
+              className="w-10 h-10 flex-shrink-0 object-cover border-2 border-[var(--border-light)]"
+              style={{ minWidth: '40px', maxWidth: '40px' }}
+              onError={(e) => {
+                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=ff4d00&color=fff&size=80`;
+              }}
+            />
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm text-[var(--text-primary)] truncate">{user.name}</p>
+                <p className="text-xs text-[var(--text-muted)] truncate">{user.email}</p>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => { logout(); closeMobile(); }}
+            className="w-full flex items-center gap-3 h-10 text-sm text-[var(--text-secondary)] hover:text-[var(--error)] hover:bg-[var(--sidebar-hover-bg)] transition-colors duration-[var(--sidebar-transition-speed)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--error)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)]"
+            aria-label="Sign Out"
+          >
+            <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            {!isCollapsed && <span>Sign Out</span>}
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          <div className="flex items-center gap-3 py-2 min-h-[40px]">
+            <div className="w-10 h-10 flex items-center justify-center flex-shrink-0 text-[var(--text-muted)]" style={{ minWidth: '40px', maxWidth: '40px' }} aria-hidden="true">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm text-[var(--text-primary)]">Guest</p>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => { login(); closeMobile(); }}
+            className="w-full flex items-center gap-3 h-10 text-sm text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--sidebar-hover-bg)] transition-colors duration-[var(--sidebar-transition-speed)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--sidebar-bg)]"
+            aria-label="Sign In"
+          >
+            <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            {!isCollapsed && <span>Sign In</span>}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  /* ---- Render ---- */
   return (
     <>
-      {/* Sidebar */}
+      {/* Mobile backdrop */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity duration-300"
+          onClick={closeMobile}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Desktop sidebar — hidden on mobile, visible on lg+ */}
       <aside
-        className={`fixed top-0 left-0 flex flex-col h-screen bg-[var(--bg-card)] border-r border-[var(--border-light)] transition-all duration-300 ease-out z-50 ${
-          isCollapsed ? 'w-[72px]' : 'w-[280px]'
-        }`}
+        data-sidebar-desktop="true"
+        className={desktopClasses}
+        role="navigation"
+        aria-label="Main navigation"
       >
-        {/* Top Section - h-16, app icon w-10 h-10 to match nav row height */}
-        <div
-          data-sidebar-top="true"
-          className="h-16 flex items-center px-3 flex-shrink-0 relative"
-          onMouseEnter={() => {
-            if (isCollapsed) setIsHoveringAppArea(true);
-          }}
-          onMouseLeave={() => {
-            setIsHoveringAppArea(false);
-          }}
-        >
-          {/* App Icon - LEFT, w-10 h-10 matching nav row height */}
-          <div
-            data-app-icon="true"
-            className={`w-10 h-10 rounded-lg bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center cursor-pointer transition-all duration-300 flex-shrink-0 ${
-              isHoveringAppArea ? 'opacity-0 scale-75' : 'opacity-100 scale-100'
-            }`}
-            onClick={toggleSidebar}
-          >
-            <span className="text-white text-base font-bold">T</span>
-          </div>
+        {renderHeader()}
+        {renderNav()}
+        {renderUserSection()}
+      </aside>
 
-          {/* Sidebar Expander - overlays app icon on hover, right side when expanded */}
-          {showExpander && (
-            <button
-              onClick={toggleSidebar}
-              className={`w-10 h-10 flex items-center justify-center transition-all duration-300 flex-shrink-0 text-[var(--text-secondary)] hover:text-[var(--accent-primary)] ${
-                isCollapsed
-                  ? 'absolute left-3'
-                  : 'ml-auto'
-              }`}
-              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
-                <rect x="2" y="4" width="20" height="16" rx="3" stroke="currentColor" strokeWidth="2" />
-                <line x1="9" y1="4" x2="9" y2="20" stroke="currentColor" strokeWidth="2" />
-              </svg>
-            </button>
-          )}
-        </div>
-
-        {/* Navigation - each row h-10 (40px) */}
-        <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map((item, index) => (
-            <div key={item.path}>
-              <Link
-                to={item.path}
-                onClick={(e) => {
-                  if (item.path === '/my-courses') {
-                    e.preventDefault();
-                    setMyCoursesOpen(!myCoursesOpen);
-                  }
-                }}
-                className={`flex items-center gap-3 px-3 h-10 rounded-lg transition-all duration-200 group ${
-                  isActive(item.path) && item.path !== '/my-courses'
-                    ? 'bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-primary-dark)] text-white shadow-sm'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
-                }`}
-                title={isCollapsed ? item.label : undefined}
-              >
-                <span className={`w-5 h-5 flex-shrink-0 transition-colors duration-200 ${
-                  isActive(item.path) && item.path !== '/my-courses'
-                    ? 'text-white'
-                    : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'
-                }`}>
-                  {item.icon}
-                </span>
-                <span
-                  className={`font-medium text-sm whitespace-nowrap transition-all duration-300 overflow-hidden ${
-                    isCollapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[200px]'
-                  }`}
-                >
-                  {item.label}
-                </span>
-                {item.path === '/my-courses' && !isCollapsed && (
-                  <svg
-                    className={`w-4 h-4 ml-auto transition-transform duration-200 ${myCoursesOpen ? 'rotate-90' : ''}`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                )}
-              </Link>
-
-              {/* Submenu */}
-              {item.path === '/my-courses' && myCoursesOpen && !isCollapsed && (
-                <div className="ml-3 mt-2 space-y-1 animate-fade-in">
-                  {userCourses.length > 0 ? (
-                    userCourses.slice(0, 5).map((course) => (
-                      <button
-                        key={course.id}
-                        onClick={(e) => handleCourseClick(course, e)}
-                        className="w-full text-left px-3 py-2 rounded-md text-sm text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
-                      >
-                        <div className="font-medium truncate">{course.title}</div>
-                        <div className="text-xs text-[var(--text-muted)] mt-0.5">
-                          {course.modules_count} modules
-                        </div>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-3 py-4 text-center">
-                      <p className="text-sm text-[var(--text-muted)] mb-2">No courses yet</p>
-                      <Link
-                        to="/"
-                        className="text-xs text-[var(--accent-primary)] hover:underline"
-                      >
-                        Generate your first course
-                      </Link>
-                    </div>
-                  )}
-                  {userCourses.length > 5 && (
-                    <Link
-                      to="/my-courses"
-                      className="block px-3 py-2 text-xs text-[var(--accent-primary)] hover:underline"
-                    >
-                      View all {userCourses.length} courses →
-                    </Link>
-                  )}
-                </div>
-              )}
-
-              {/* Section Separator */}
-              {index < NAV_ITEMS.length - 1 && (
-                <div data-separator="true" className="my-1" />
-              )}
-            </div>
-          ))}
-        </nav>
-
-        {/* User Section - icons w-10 h-10 matching nav rows */}
-        <div
-          data-user-section="true"
-          className="px-3 py-3 flex-shrink-0 overflow-hidden"
-        >
-          {isLoading ? (
-            <div className="flex items-center gap-3 py-2 min-h-[40px]">
-              <div className="w-10 h-10 rounded-full skeleton flex-shrink-0" />
-              {!isCollapsed && (
-                <div className="flex-1 min-w-0">
-                  <div className="h-4 skeleton rounded w-24 mb-1" />
-                  <div className="h-3 skeleton rounded w-16" />
-                </div>
-              )}
-            </div>
-          ) : isAuthenticated && user ? (
-            <div className="space-y-1">
-              <div className="flex items-center gap-3 py-2 min-h-[40px]">
-                <img
-                  src={user.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=c4703c&color=fff&size=80`}
-                  alt={user.name || 'User'}
-                  className="w-10 h-10 rounded-full flex-shrink-0 object-cover ring-1 ring-[var(--border-light)]"
-                  style={{ minWidth: '40px', maxWidth: '40px' }}
-                  onError={(e) => {
-                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=c4703c&color=fff&size=80`;
-                  }}
-                />
-                {!isCollapsed && (
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-[var(--text-primary)] truncate">{user.name}</p>
-                    <p className="text-xs text-[var(--text-muted)] truncate">{user.email}</p>
-                  </div>
-                )}
-              </div>
-              {isCollapsed ? (
-                <button
-                  onClick={() => logout()}
-                  className="w-full h-10 rounded-lg text-[var(--text-secondary)] hover:text-[var(--error)] transition-colors flex items-center justify-center"
-                  title="Sign Out"
-                  aria-label="Sign Out"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                </button>
-              ) : (
-                <button
-                  onClick={() => logout()}
-                  className="w-full flex items-center gap-3 h-10 text-sm text-[var(--text-secondary)] hover:text-[var(--error)] transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                  Sign Out
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-1">
-              <div className="flex items-center gap-3 py-2 min-h-[40px]">
-                <div
-                  data-guest-icon="true"
-                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-[var(--text-muted)]"
-                  style={{ minWidth: '40px', maxWidth: '40px' }}
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-                {!isCollapsed && (
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-[var(--text-primary)]">Guest</p>
-                  </div>
-                )}
-              </div>
-              {isCollapsed ? (
-                <button
-                  onClick={() => login()}
-                  className="w-full h-10 rounded-lg text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors flex items-center justify-center"
-                  title="Sign In"
-                  aria-label="Sign In"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                </button>
-              ) : (
-                <button
-                  onClick={() => login()}
-                  className="w-full flex items-center gap-3 h-10 text-sm text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  Sign In
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+      {/* Mobile drawer — visible on mobile only, hidden on lg+ */}
+      <aside
+        ref={sidebarRef}
+        data-sidebar-mobile="true"
+        className={mobileClasses}
+        role="dialog"
+        aria-label="Main navigation"
+        aria-modal="true"
+      >
+        {renderHeader()}
+        {renderNav()}
+        {renderUserSection()}
       </aside>
     </>
   );
