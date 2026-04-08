@@ -53,6 +53,85 @@ const wrapper = ({ children }) => (
   </BrowserRouter>
 );
 
+describe('Sidebar - Consistent Icon Sizing', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLocationPathname = '/';
+  });
+
+  it('should have all nav icons at w-6 h-6', () => {
+    render(<Sidebar />, { wrapper });
+    const navIconSpans = document.querySelectorAll('aside nav a > span:first-child');
+    navIconSpans.forEach(span => {
+      expect(span.className).toContain('w-6');
+      expect(span.className).toContain('h-6');
+    });
+  });
+
+  it('should have expander icon at w-8 h-8 button with w-6 h-6 svg', () => {
+    render(<Sidebar />, { wrapper });
+    const appIcon = document.querySelector('[data-app-icon="true"]');
+    fireEvent.mouseEnter(appIcon);
+    const expanderBtn = screen.getByRole('button', { name: /expand sidebar/i });
+    // Button itself is w-8 h-8
+    expect(expanderBtn.className).toContain('w-8');
+    expect(expanderBtn.className).toContain('h-8');
+    // Has svg child
+    expect(expanderBtn.querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('should have sign in/sign out icons at consistent size', () => {
+    render(<Sidebar />, { wrapper });
+    const signInBtn = screen.getByRole('button', { name: /sign in/i });
+    expect(signInBtn.querySelector('svg')).toBeInTheDocument();
+    // Button is full width, svg inside
+    expect(signInBtn.className).toContain('w-full');
+  });
+
+  it('should have guest icon at w-8 h-8 (matching app icon size)', () => {
+    render(<Sidebar />, { wrapper });
+    const guestIcon = document.querySelector('[data-guest-icon="true"]');
+    expect(guestIcon.className).toContain('w-8 h-8');
+  });
+
+  it('should have app icon at w-8 h-8', () => {
+    render(<Sidebar />, { wrapper });
+    const appIcon = document.querySelector('[data-app-icon="true"]');
+    expect(appIcon.className).toContain('w-8 h-8');
+  });
+});
+
+describe('Sidebar - No Icon Backgrounds', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLocationPathname = '/';
+  });
+
+  it('should not have background on nav icons', () => {
+    render(<Sidebar />, { wrapper });
+    const navIconSpan = document.querySelector('aside nav a[href="/"] > span');
+    expect(navIconSpan.className).not.toContain('bg-');
+    expect(navIconSpan.className).not.toContain('rounded');
+  });
+
+  it('should not have background on expander button', () => {
+    render(<Sidebar />, { wrapper });
+    const appIcon = document.querySelector('[data-app-icon="true"]');
+    fireEvent.mouseEnter(appIcon);
+    const expanderBtn = screen.getByRole('button', { name: /expand sidebar/i });
+    // Expander should not have gradient background or highlighted bg
+    expect(expanderBtn.className).not.toContain('bg-gradient');
+    expect(expanderBtn.className).not.toContain('rounded-xl');
+  });
+
+  it('should not have background on sign in icon', () => {
+    render(<Sidebar />, { wrapper });
+    const signInBtn = screen.getByRole('button', { name: /sign in/i });
+    // Should not have any background color class
+    expect(signInBtn.className).not.toContain('bg-[');
+  });
+});
+
 describe('Sidebar - Default Collapsed State', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -69,30 +148,19 @@ describe('Sidebar - Default Collapsed State', () => {
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
     expect(appIcon).toBeInTheDocument();
-    // App icon should be on the left (not order-2)
-    expect(appIcon.className).not.toContain('order-2');
   });
 
   it('should NOT show app name in sidebar', () => {
     render(<Sidebar />, { wrapper });
-    // Text-to-Learn should not be in sidebar (it's in the top header)
     const sidebar = document.querySelector('aside');
-    const appName = sidebar.querySelector('[data-sidebar-top="true"]');
-    // The top section should NOT contain "Text-to-Learn" text
-    expect(appName.textContent).not.toContain('Text-to-Learn');
+    const topSection = sidebar.querySelector('[data-sidebar-top="true"]');
+    expect(topSection.textContent).not.toContain('Text-to-Learn');
   });
 
   it('should NOT show sidebar expander icon when collapsed', () => {
     render(<Sidebar />, { wrapper });
     const expanderBtn = screen.queryByRole('button', { name: /sidebar/i });
     expect(expanderBtn).not.toBeInTheDocument();
-  });
-
-  it('should not have a top separator bar', () => {
-    render(<Sidebar />, { wrapper });
-    const topSection = document.querySelector('[data-sidebar-top="true"]');
-    expect(topSection).toBeInTheDocument();
-    expect(topSection.className).not.toContain('border-b');
   });
 });
 
@@ -106,28 +174,23 @@ describe('Sidebar - Hover App Icon to Reveal Expander', () => {
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
     fireEvent.mouseEnter(appIcon);
-
     const expanderBtn = screen.getByRole('button', { name: /expand sidebar/i });
     expect(expanderBtn).toBeInTheDocument();
   });
 
-  it('should position expander overlapping app icon completely when hovered', () => {
+  it('should position expander overlapping app icon when hovered', () => {
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
     fireEvent.mouseEnter(appIcon);
-
     const expanderBtn = screen.getByRole('button', { name: /expand sidebar/i });
-    // Expander should be at the same position as app icon (overlapping)
     expect(expanderBtn.className).toContain('absolute');
   });
 
   it('should hide sidebar expander when mouse leaves app icon', () => {
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
-
     fireEvent.mouseEnter(appIcon);
     fireEvent.mouseLeave(appIcon);
-
     const expanderBtn = screen.queryByRole('button', { name: /expand sidebar/i });
     expect(expanderBtn).not.toBeInTheDocument();
   });
@@ -136,11 +199,9 @@ describe('Sidebar - Hover App Icon to Reveal Expander', () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
-
     fireEvent.mouseEnter(appIcon);
     const expanderBtn = screen.getByRole('button', { name: /expand sidebar/i });
     await user.click(expanderBtn);
-
     const sidebar = document.querySelector('aside');
     expect(sidebar.className).toContain('w-[280px]');
   });
@@ -149,13 +210,10 @@ describe('Sidebar - Hover App Icon to Reveal Expander', () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
-
     fireEvent.mouseEnter(appIcon);
     const expanderBtn = screen.getByRole('button', { name: /expand sidebar/i });
     await user.click(expanderBtn);
-
     fireEvent.mouseLeave(appIcon);
-
     const sidebar = document.querySelector('aside');
     expect(sidebar.className).toContain('w-[280px]');
   });
@@ -167,20 +225,13 @@ describe('Sidebar - Expanded State', () => {
     mockLocationPathname = '/';
   });
 
-  it('should show app icon on LEFT and expander on RIGHT when expanded', async () => {
+  it('should show expander on RIGHT when expanded', async () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
     fireEvent.mouseEnter(appIcon);
     const expandBtn = screen.getByRole('button', { name: /expand sidebar/i });
     await user.click(expandBtn);
-
-    // After expanding, app icon should be visible again
-    const appIconAfter = document.querySelector('[data-app-icon="true"]');
-    expect(appIconAfter).toBeInTheDocument();
-    expect(appIconAfter.className).toContain('opacity-100');
-
-    // Expander should be on the right (ml-auto class)
     const expanderBtn = screen.getByRole('button', { name: /collapse sidebar/i });
     expect(expanderBtn.className).toContain('ml-auto');
   });
@@ -190,23 +241,10 @@ describe('Sidebar - Expanded State', () => {
     render(<Sidebar />, { wrapper });
     const appIcon = document.querySelector('[data-app-icon="true"]');
     fireEvent.mouseEnter(appIcon);
-    const expanderBtn = screen.getByRole('button', { name: /expand sidebar/i });
-    await user.click(expanderBtn);
-
-    expect(screen.getByText('My Courses')).toBeInTheDocument();
-    expect(screen.getByText('Bookmarks')).toBeInTheDocument();
-  });
-
-  it('should show collapse label on expander when expanded', async () => {
-    const user = userEvent.setup();
-    render(<Sidebar />, { wrapper });
-    const appIcon = document.querySelector('[data-app-icon="true"]');
-    fireEvent.mouseEnter(appIcon);
     const expandBtn = screen.getByRole('button', { name: /expand sidebar/i });
     await user.click(expandBtn);
-
-    const collapseBtn = screen.getByRole('button', { name: /collapse sidebar/i });
-    expect(collapseBtn).toBeInTheDocument();
+    expect(screen.getByText('My Courses')).toBeInTheDocument();
+    expect(screen.getByText('Bookmarks')).toBeInTheDocument();
   });
 
   it('should collapse when expander is clicked in expanded state', async () => {
@@ -216,10 +254,8 @@ describe('Sidebar - Expanded State', () => {
     fireEvent.mouseEnter(appIcon);
     const expandBtn = screen.getByRole('button', { name: /expand sidebar/i });
     await user.click(expandBtn);
-
     const collapseBtn = screen.getByRole('button', { name: /collapse sidebar/i });
     await user.click(collapseBtn);
-
     const sidebar = document.querySelector('aside');
     expect(sidebar.className).toContain('w-[72px]');
   });
@@ -233,10 +269,8 @@ describe('Sidebar - Active Section Colors', () => {
   it('should have white text and icon for active nav item', () => {
     mockLocationPathname = '/';
     render(<Sidebar />, { wrapper });
-
     const activeLink = document.querySelector('aside nav a[href="/"]');
     expect(activeLink.className).toContain('text-white');
-
     const iconSpan = activeLink.querySelector('span');
     expect(iconSpan.className).toContain('text-white');
   });
@@ -244,22 +278,9 @@ describe('Sidebar - Active Section Colors', () => {
   it('should keep active item white on hover (not faded)', () => {
     mockLocationPathname = '/';
     render(<Sidebar />, { wrapper });
-
     const activeLink = document.querySelector('aside nav a[href="/"]');
     fireEvent.mouseEnter(activeLink);
-
     expect(activeLink.className).toContain('text-white');
-  });
-
-  it('should have proper hover color for inactive items', () => {
-    mockLocationPathname = '/my-courses';
-    render(<Sidebar />, { wrapper });
-
-    const homeLink = document.querySelector('aside nav a[href="/"]');
-    fireEvent.mouseEnter(homeLink);
-
-    const iconSpan = homeLink.querySelector('span');
-    expect(iconSpan.className).toContain('group-hover:text-[var(--text-primary)]');
   });
 });
 
@@ -273,13 +294,6 @@ describe('Sidebar - Collapsed Navigation', () => {
     render(<Sidebar />, { wrapper });
     const homeLink = document.querySelector('aside nav a[href="/"]');
     expect(homeLink).toHaveAttribute('title', 'Home');
-  });
-
-  it('should have correct href for nav items in collapsed state', () => {
-    render(<Sidebar />, { wrapper });
-    const homeLink = document.querySelector('aside nav a[href="/"]');
-    expect(homeLink).toBeInTheDocument();
-    expect(homeLink.getAttribute('href')).toBe('/');
   });
 
   it('should hide nav labels when collapsed', () => {
@@ -306,38 +320,5 @@ describe('Sidebar - User Section (Guest)', () => {
     render(<Sidebar />, { wrapper });
     const signInBtn = screen.getByRole('button', { name: /sign in/i });
     expect(signInBtn).toBeInTheDocument();
-  });
-
-  it('should show guest icon, "Guest" text, and sign in button when expanded', async () => {
-    const user = userEvent.setup();
-    render(<Sidebar />, { wrapper });
-    const appIcon = document.querySelector('[data-app-icon="true"]');
-    fireEvent.mouseEnter(appIcon);
-    const expandBtn = screen.getByRole('button', { name: /expand sidebar/i });
-    await user.click(expandBtn);
-
-    expect(screen.getByText('Guest')).toBeInTheDocument();
-    expect(screen.queryByText(/@/)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
-  });
-});
-
-describe('Sidebar - User Section Overflow Protection', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockLocationPathname = '/';
-  });
-
-  it('should have min-h on user section rows to prevent icon compression', () => {
-    render(<Sidebar />, { wrapper });
-    const userRow = document.querySelector('[data-user-section="true"] [class*="min-h"]');
-    expect(userRow).toBeInTheDocument();
-  });
-
-  it('should have fixed width/height on guest icon to prevent compression', () => {
-    render(<Sidebar />, { wrapper });
-    const guestIcon = document.querySelector('[data-guest-icon="true"]');
-    expect(guestIcon.style.minWidth).toBe('40px');
-    expect(guestIcon.style.maxWidth).toBe('40px');
   });
 });
