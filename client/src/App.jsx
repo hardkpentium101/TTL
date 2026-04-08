@@ -7,6 +7,8 @@ import Sidebar from './components/Sidebar';
 import Home from './pages/Home';
 import CoursePage from './pages/CoursePage';
 import ProtectedRoute from './components/ProtectedRoute';
+import BookmarksPage from './pages/BookmarksPage';
+import MyCoursesPage from './pages/MyCoursesPage';
 
 function AuthSync() {
   const { isAuthenticated, syncUser } = useAuth();
@@ -26,10 +28,21 @@ function AppLayout() {
       <Sidebar />
 
       <main className="flex-1 flex flex-col min-h-screen ml-0 lg:ml-[72px] transition-all duration-300">
+        {/* Top Bar with App Name */}
+        <header className="sticky top-0 z-30 bg-[var(--bg-card)]/80 backdrop-blur-md border-b border-[var(--border-light)]">
+          <div className="flex items-center justify-end px-4 md:px-6 py-2">
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-semibold text-[var(--text-secondary)] hidden sm:block" style={{ fontFamily: 'var(--font-display)' }}>
+                Text-to-Learn
+              </h1>
+            </div>
+          </div>
+        </header>
+
         <div className="flex-1 overflow-y-auto">
           <Outlet />
         </div>
-        
+
         <footer className="border-t border-[var(--border-light)] py-6 mt-auto">
           <div className="max-w-5xl mx-auto px-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -64,47 +77,13 @@ function App() {
               
               <Route path="my-courses" element={
                 <ProtectedRoute>
-                  <div className="max-w-4xl mx-auto px-6 py-12">
-                    <div className="text-center card p-12">
-                      <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-[var(--accent-primary)]/10 flex items-center justify-center">
-                        <svg className="w-8 h-8 text-[var(--accent-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                        </svg>
-                      </div>
-                      <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: 'var(--font-display)' }}>
-                        My Courses
-                      </h1>
-                      <p className="text-[var(--text-secondary)] mb-6 max-w-md mx-auto">
-                        Your saved courses will appear here. Generate your first course to get started!
-                      </p>
-                      <div className="inline-flex items-center gap-2 text-sm text-[var(--text-muted)]">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Use the sidebar dropdown to quickly access recent courses
-                      </div>
-                    </div>
-                  </div>
+                  <MyCoursesPage />
                 </ProtectedRoute>
               } />
 
               <Route path="bookmarks" element={
                 <ProtectedRoute>
-                  <div className="max-w-4xl mx-auto px-6 py-12">
-                    <div className="text-center card p-12">
-                      <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-[var(--accent-secondary)]/10 flex items-center justify-center">
-                        <svg className="w-8 h-8 text-[var(--accent-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                        </svg>
-                      </div>
-                      <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: 'var(--font-display)' }}>
-                        Bookmarks
-                      </h1>
-                      <p className="text-[var(--text-secondary)] max-w-md mx-auto">
-                        Your bookmarked lessons will appear here.
-                      </p>
-                    </div>
-                  </div>
+                  <BookmarksPage />
                 </ProtectedRoute>
               } />
 

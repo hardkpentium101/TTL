@@ -50,62 +50,6 @@ export default function Home() {
   const inputRef = useRef(null);
   const formRef = useRef(null);
 
-  // Restore generation state on mount
-  useEffect(() => {
-    const savedState = loadGenerationState();
-    if (savedState && savedState.job_id && savedState.topic) {
-      setTopic(savedState.topic);
-      setLoading(true);
-      setProgress(savedState.progress || 0);
-      setCurrentStep(Math.min(Math.floor((savedState.progress || 0) / 17), 5));
-
-      // Resume polling for the job
-      resumeGeneration(savedState.job_id, savedState.topic);
-    } else {
-      inputRef.current?.focus();
-    }
-  }, []);
-
-  const resumeGeneration = async (jobId, savedTopic) => {
-    try {
-      const status = await getCourseStatus(jobId);
-
-      if (status.status === 'completed') {
-        setProgress(100);
-        setCurrentStep(5);
-
-        const result = await getCourseResult(jobId);
-        const course = result.data;
-        saveGenerationState(null);
-
-        refreshCoursesEvent.dispatchEvent(new Event('refresh'));
-
-        setTimeout(() => {
-          const courseData = course.course || course;
-          const courseTitle = courseData.title || 'Generated Course';
-          navigate(`/course/${encodeURIComponent(courseTitle)}`, {
-            state: { course: courseData },
-          });
-        }, 800);
-      } else if (status.status === 'failed') {
-        setError(status.message || 'Course generation failed');
-        saveGenerationState(null);
-        setLoading(false);
-      } else {
-        // Still running, continue polling
-        setProgress(status.progress || 0);
-        setCurrentStep(Math.min(Math.floor((status.progress || 0) / 17), 5));
-        pollForCompletion(jobId, savedTopic);
-      }
-    } catch (err) {
-      console.error('Resume generation error:', err);
-      // Job might not exist, clear state
-      saveGenerationState(null);
-      setLoading(false);
-      inputRef.current?.focus();
-    }
-  };
-
   const pollForCompletion = (jobId, savedTopic) => {
     const poll = async () => {
       try {
@@ -114,7 +58,6 @@ export default function Home() {
         setProgress(prog);
         setCurrentStep(Math.min(Math.floor(prog / 17), 5));
 
-        // Persist progress for refresh recovery
         saveGenerationState({
           job_id: jobId,
           topic: savedTopic,
@@ -155,6 +98,60 @@ export default function Home() {
     poll();
   };
 
+  const resumeGeneration = async (jobId, savedTopic) => {
+    try {
+      const status = await getCourseStatus(jobId);
+
+      if (status.status === 'completed') {
+        setProgress(100);
+        setCurrentStep(5);
+
+        const result = await getCourseResult(jobId);
+        const course = result.data;
+        saveGenerationState(null);
+
+        refreshCoursesEvent.dispatchEvent(new Event('refresh'));
+
+        setTimeout(() => {
+          const courseData = course.course || course;
+          const courseTitle = courseData.title || 'Generated Course';
+          navigate(`/course/${encodeURIComponent(courseTitle)}`, {
+            state: { course: courseData },
+          });
+        }, 800);
+      } else if (status.status === 'failed') {
+        setError(status.message || 'Course generation failed');
+        saveGenerationState(null);
+        setLoading(false);
+      } else {
+        setProgress(status.progress || 0);
+        setCurrentStep(Math.min(Math.floor((status.progress || 0) / 17), 5));
+        pollForCompletion(jobId, savedTopic);
+      }
+    } catch (err) {
+      console.error('Resume generation error:', err);
+      saveGenerationState(null);
+      setLoading(false);
+      inputRef.current?.focus();
+    }
+  };
+
+  // Restore generation state on mount
+  useEffect(() => {
+    const savedState = loadGenerationState();
+    if (savedState && savedState.job_id && savedState.topic) {
+      setTopic(savedState.topic);
+      setLoading(true);
+      setProgress(savedState.progress || 0);
+      setCurrentStep(Math.min(Math.floor((savedState.progress || 0) / 17), 5));
+
+      resumeGeneration(savedState.job_id, savedState.topic);
+    } else {
+      inputRef.current?.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!topic.trim()) return;
@@ -167,7 +164,6 @@ export default function Home() {
     try {
       const { job_id } = await generateCourseAsync(topic);
 
-      // Save initial state
       saveGenerationState({
         job_id,
         topic: topic.trim(),
@@ -311,7 +307,7 @@ export default function Home() {
                     <span className="text-sm font-bold text-[var(--accent-primary)]">{progress}%</span>
                   </div>
                   <div className="h-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
-                    <div 
+                    <div
                       className="h-full rounded-full bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] transition-all duration-500 ease-out"
                       style={{ width: `${progress}%` }}
                     />
@@ -321,11 +317,11 @@ export default function Home() {
                 {/* Steps */}
                 <div className="space-y-3">
                   {GenerationSteps.map((step, index) => (
-                    <div 
+                    <div
                       key={step.id}
                       className={`flex items-center gap-4 p-3 rounded-lg transition-all duration-300 ${
-                        index <= currentStep 
-                          ? 'bg-[var(--accent-primary)]/5 text-[var(--text-primary)]' 
+                        index <= currentStep
+                          ? 'bg-[var(--accent-primary)]/5 text-[var(--text-primary)]'
                           : 'text-[var(--text-muted)]'
                       }`}
                     >
@@ -385,10 +381,10 @@ export default function Home() {
                       {item.desc}
                     </p>
                   </div>
-                  <svg 
-                    className="w-5 h-5 text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] group-hover:translate-x-1 transition-all flex-shrink-0 mt-1" 
-                    fill="none" 
-                    stroke="currentColor" 
+                  <svg
+                    className="w-5 h-5 text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] group-hover:translate-x-1 transition-all flex-shrink-0 mt-1"
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />

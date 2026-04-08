@@ -309,20 +309,24 @@ describe('Sidebar Navigation', () => {
 
   it('should render sidebar with navigation items', () => {
     render(<Sidebar />, { wrapper })
-    
-    expect(screen.getByText('Home')).toBeInTheDocument()
-    expect(screen.getByText('My Courses')).toBeInTheDocument()
+
+    // Nav items exist as links with hrefs
+    const homeLink = document.querySelector('aside nav a[href="/"]')
+    const coursesLink = document.querySelector('aside nav a[href="/my-courses"]')
+    expect(homeLink).toBeInTheDocument()
+    expect(coursesLink).toBeInTheDocument()
   })
 
-  it('should display logo/brand', () => {
+  it('should display app icon', () => {
     render(<Sidebar />, { wrapper })
-    
-    expect(screen.getByText('Text-to-Learn')).toBeInTheDocument()
+
+    expect(document.querySelector('[data-app-icon="true"]')).toBeInTheDocument()
   })
 
-  it('should show sign in button for guest users', () => {
+  it('should show sign in button when sidebar is visible', () => {
     render(<Sidebar />, { wrapper })
-    
+
+    // Sign in icon should be visible in collapsed state
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
   })
 })
