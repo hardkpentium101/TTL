@@ -69,6 +69,16 @@ const getDesktop = () => document.querySelector('[data-sidebar-desktop="true"]')
 const getMobile = () => document.querySelector('[data-sidebar-mobile="true"]');
 const getNavLinks = () => getDesktop()?.querySelectorAll('nav a') || [];
 
+// Mobile hamburger lives outside Sidebar (in App.jsx), so render it alongside
+const MobileWrapper = ({ children }) => (
+  <BrowserRouter>
+    <SidebarProvider>
+      <SidebarMobileToggle />
+      <Sidebar />
+    </SidebarProvider>
+  </BrowserRouter>
+);
+
 // Control initial state via localStorage — this is the authoritative source
 // for collapsed preference. When no preference is stored, the provider falls
 // back to window.innerWidth. For test reliability, we explicitly set it.
@@ -428,16 +438,6 @@ describe('B. Desktop Behaviour', () => {
    ========================================================================== */
 
 describe('C. Mobile Behaviour', () => {
-  // Mobile hamburger lives outside Sidebar (in App.jsx), so render it alongside
-  const MobileWrapper = ({ children }) => (
-    <BrowserRouter>
-      <SidebarProvider>
-        <SidebarMobileToggle />
-        <Sidebar />
-      </SidebarProvider>
-    </BrowserRouter>
-  );
-
   beforeEach(() => {
     resetState();
     setCollapsed(); // mobile starts collapsed
@@ -701,6 +701,132 @@ describe('D. Content & Sections', () => {
       el => el.getAttribute('class')?.includes('h-[1px]')
     ).length;
     expect(sepCount).toBeGreaterThanOrEqual(2);
+  });
+});
+
+/* ==========================================================================
+   F. SIDEBAR EXPANSION FLOWS (Hamburger + My Courses)
+   ========================================================================== */
+
+describe('F. Sidebar Expansion Flows', () => {
+  describe('F1. Hamburger opens sidebar fully expanded', () => {
+    it('mobile drawer opens with labels visible immediately', async () => {
+      render(<MobileWrapper />);
+      const toggle = screen.getByRole('button', { name: /open menu/i });
+      fireEvent.click(toggle);
+
+      await vi.waitFor(() => {
+        const mobile = getMobile();
+        expect(mobile?.className).toContain('translate-x-0');
+      });
+
+      // Labels should be visible (sidebar is expanded, not collapsed)
+      const text = getMobile()?.textContent || '';
+      expect(text).toContain('Home');
+      expect(text).toContain('Bookmarks');
+      expect(text).toContain('Settings');
+    });
+
+    it('mobile drawer has all nav labels visible (not opacity-0/w-0)', async () => {
+      render(<MobileWrapper />);
+      const toggle = screen.getByRole('button', { name: /open menu/i });
+      fireEvent.click(toggle);
+
+      await vi.waitFor(() => {
+        const mobile = getMobile();
+        expect(mobile?.className).toContain('translate-x-0');
+      });
+
+      // All nav link labels should be visible — not hidden
+      const links = getMobile()?.querySelectorAll('nav a') || [];
+      const hiddenLabels = Array.from(links).filter(link => {
+        const spans = link.querySelectorAll('span');
+        return Array.from(spans).some(s =>
+          s.className.includes('opacity-0') || s.className.includes('w-0')
+        );
+      });
+      expect(hiddenLabels.length).toBe(0);
+    });
+  });
+
+  describe('F2. My Courses click behavior', () => {
+    it('clicking My Courses when collapsed expands sidebar first, then shows sub-menu', async () => {
+      localStorage.setItem('text-to-learn-sidebar-collapsed', 'true');
+      render(<Sidebar />, { wrapper });
+      const desktop = getDesktop();
+      expect(desktop?.className).toContain('w-[var(--sidebar-collapsed-width)]');
+
+      const link = desktop?.querySelector('nav a[href="/my-courses"]');
+      fireEvent.click(link);
+
+      // Sidebar should expand immediately
+      expect(desktop?.className).toContain('w-[var(--sidebar-width)]');
+
+      // Sub-menu opens after 200ms animation
+      await vi.waitFor(() => {
+        const group = desktop?.querySelector('[role="group"][aria-label="Your courses"]');
+        expect(group).toBeTruthy();
+      }, { timeout: 500 });
+    });
+
+    it('clicking My Courses when expanded toggles sub-menu (open/close)', async () => {
+      render(<Sidebar />, { wrapper });
+      const desktop = getDesktop();
+
+      // First click — open sub-menu
+      const link = desktop?.querySelector('nav a[href="/my-courses"]');
+      fireEvent.click(link);
+
+      await vi.waitFor(() => {
+        const group = desktop?.querySelector('[role="group"][aria-label="Your courses"]');
+        expect(group).toBeTruthy();
+      }, { timeout: 300 });
+
+      // Second click — close sub-menu
+      fireEvent.click(link);
+
+      // Sub-menu should disappear
+      await vi.waitFor(() => {
+        const group = desktop?.querySelector('[role="group"][aria-label="Your courses"]');
+        expect(group).toBeFalsy();
+      }, { timeout: 300 });
+    });
+
+    it('sidebar width is consistent (280px) after both hamburger and My Courses open it', async () => {
+      // Test 1: Open via hamburger, check mobile drawer is full width
+      render(<MobileWrapper />);
+      const toggle = screen.getByRole('button', { name: /open menu/i });
+      fireEvent.click(toggle);
+
+      await vi.waitFor(() => {
+        const mobile = getMobile();
+        expect(mobile?.className).toContain('translate-x-0');
+        // Mobile drawer uses fixed positioning, not width classes
+        expect(mobile?.className).toContain('h-screen');
+        expect(mobile?.className).toContain('inset-y-0');
+      });
+    });
+  });
+
+  describe('F3. No visual glitch during expansion', () => {
+    it('sidebar does NOT show collapsed width during mobile drawer open', async () => {
+      render(<MobileWrapper />);
+      const toggle = screen.getByRole('button', { name: /open menu/i });
+      fireEvent.click(toggle);
+
+      await vi.waitFor(() => {
+        const mobile = getMobile();
+        expect(mobile?.className).toContain('translate-x-0');
+      });
+
+      // Mobile drawer should NOT have any collapsed state indicators
+      const text = getMobile()?.textContent || '';
+      // All labels should be present and visible
+      expect(text).toContain('Home');
+      expect(text).toContain('My Courses');
+      expect(text).toContain('Bookmarks');
+      expect(text).toContain('Settings');
+    });
   });
 });
 
