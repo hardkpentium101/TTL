@@ -22,8 +22,10 @@ export function SidebarProvider({ children }) {
     if (typeof window === 'undefined') return false;
     const persisted = getStorageItem(COLLAPSED_KEY);
     if (persisted !== null) return persisted;
-    return window.innerWidth < 1024;
+    // Default to expanded (false) — no localStorage means first visit
+    return false;
   });
+  const prevMobileOpenRef = React.useRef(false);
 
   // 2. Persist collapsed state to localStorage
   useEffect(() => {
@@ -41,11 +43,28 @@ export function SidebarProvider({ children }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // 4. Sync: when mobile drawer opens, expand sidebar; when it closes, collapse
+  useEffect(() => {
+    if (prevMobileOpenRef.current !== isMobileOpen) {
+      prevMobileOpenRef.current = isMobileOpen;
+      if (isMobileOpen) {
+        setIsCollapsed(false); // opening: show labels
+      }
+    }
+  }, [isMobileOpen]);
+
   const toggleMobile = useCallback(() => {
     setIsMobileOpen(prev => !prev);
   }, []);
 
   const closeMobile = useCallback(() => {
+    setIsMobileOpen(false);
+    setIsCollapsed(true); // close drawer: reset for next open
+  }, []);
+
+  // Close mobile drawer WITHOUT affecting collapsed state
+  // Used by resize handler when transitioning to desktop
+  const hideMobileDrawer = useCallback(() => {
     setIsMobileOpen(false);
   }, []);
 
@@ -62,6 +81,7 @@ export function SidebarProvider({ children }) {
       isMobileOpen,
       toggleMobile,
       closeMobile,
+      hideMobileDrawer,
       isCollapsed,
       toggleCollapsed,
       setCollapsed,

@@ -65,7 +65,7 @@ export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, user, login, logout, isLoading } = useAuth();
-  const { isMobileOpen, closeMobile, isCollapsed, toggleCollapsed, setCollapsed } = useSidebar();
+  const { isMobileOpen, closeMobile, hideMobileDrawer, isCollapsed, toggleCollapsed, setCollapsed } = useSidebar();
   const sidebarRef = useRef(null);
   const navScrollRef = useRef(null);
   const firstFocusableRef = useRef(null);
@@ -103,14 +103,18 @@ export default function Sidebar() {
     if (!isMobileOpen) setIsHoveringAppArea(false);
   }, [isMobileOpen]);
 
+  const isMobileOpenRef = useRef(isMobileOpen);
+  isMobileOpenRef.current = isMobileOpen;
+
   // When viewport crosses breakpoints, apply responsive defaults.
   // Also closes the mobile drawer when resizing up.
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 1024) {
-        closeMobile();
-      }
-      if (window.innerWidth < 1024) {
+        // Transitioning to desktop: close mobile drawer without affecting collapsed state
+        if (isMobileOpenRef.current) hideMobileDrawer();
+      } else {
+        // Transitioning to mobile: collapse sidebar for clean state
         setCollapsed(true);
         setIsHoveringAppArea(false);
         clearTimeout(hoverExpandTimer);
@@ -119,7 +123,7 @@ export default function Sidebar() {
     handleResize(); // run on mount
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [setCollapsed, closeMobile, hoverExpandTimer]);
+  }, [setCollapsed, hideMobileDrawer, hoverExpandTimer]);
 
   // Hover-to-expand (flyout) with 200ms delay to prevent accidental triggers
   const handleHeaderMouseEnter = useCallback(() => {

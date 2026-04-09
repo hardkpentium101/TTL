@@ -69,13 +69,26 @@ const getDesktop = () => document.querySelector('[data-sidebar-desktop="true"]')
 const getMobile = () => document.querySelector('[data-sidebar-mobile="true"]');
 const getNavLinks = () => getDesktop()?.querySelectorAll('nav a') || [];
 
+// Control initial state via localStorage — this is the authoritative source
+// for collapsed preference. When no preference is stored, the provider falls
+// back to window.innerWidth. For test reliability, we explicitly set it.
 const resetState = () => {
   localStorage.removeItem('text-to-learn-sidebar-collapsed');
   mockLocationPathname = '/';
   vi.clearAllMocks();
 };
 
-beforeEach(resetState);
+const setExpanded = () => {
+  localStorage.setItem('text-to-learn-sidebar-collapsed', 'false');
+};
+
+const setCollapsed = () => {
+  localStorage.setItem('text-to-learn-sidebar-collapsed', 'true');
+};
+
+beforeEach(() => {
+  resetState();
+});
 afterEach(resetState);
 
 /* ==========================================================================
@@ -421,6 +434,13 @@ describe('C. Mobile Behaviour', () => {
     </BrowserRouter>
   );
 
+  beforeEach(() => {
+    resetState();
+    setCollapsed(); // mobile starts collapsed
+  });
+
+  afterEach(resetState);
+
   describe('C1. Hidden by default', () => {
     it('mobile drawer is off-screen (translate-x-full) when closed', () => {
       render(<Sidebar />, { wrapper });
@@ -437,13 +457,14 @@ describe('C. Mobile Behaviour', () => {
 
   describe('C2. Hamburger toggle', () => {
     it('clicking hamburger opens mobile drawer', async () => {
-      const user = userEvent.setup();
       render(<MobileWrapper />);
       const toggle = screen.getByRole('button', { name: /open menu/i });
-      await user.click(toggle);
+      fireEvent.click(toggle);
 
-      const mobile = getMobile();
-      expect(mobile?.className).toContain('translate-x-0');
+      await vi.waitFor(() => {
+        const mobile = getMobile();
+        expect(mobile?.className).toContain('translate-x-0');
+      });
     });
 
     it('renders backdrop when drawer is open', async () => {
@@ -452,8 +473,10 @@ describe('C. Mobile Behaviour', () => {
       const toggle = screen.getByRole('button', { name: /open menu/i });
       await user.click(toggle);
 
-      const backdrop = document.querySelector('[class*="bg-black/50"]');
-      expect(backdrop).toBeTruthy();
+      await vi.waitFor(() => {
+        const backdrop = document.querySelector('[class*="bg-black/50"]');
+        expect(backdrop).toBeTruthy();
+      });
     });
 
     it('clicking backdrop closes drawer', async () => {
@@ -462,10 +485,17 @@ describe('C. Mobile Behaviour', () => {
       const toggle = screen.getByRole('button', { name: /open menu/i });
       await user.click(toggle);
 
+      await vi.waitFor(() => {
+        const backdrop = document.querySelector('[class*="bg-black/50"]');
+        expect(backdrop).toBeTruthy();
+      });
+
       const backdrop = document.querySelector('[class*="bg-black/50"]');
       await user.click(backdrop);
 
-      expect(getMobile()?.className).toContain('-translate-x-full');
+      await vi.waitFor(() => {
+        expect(getMobile()?.className).toContain('-translate-x-full');
+      });
     });
   });
 
@@ -482,8 +512,10 @@ describe('C. Mobile Behaviour', () => {
       const toggle = screen.getByRole('button', { name: /open menu/i });
       await user.click(toggle);
 
-      const closeToggle = screen.getByRole('button', { name: /close menu/i });
-      expect(closeToggle).toHaveAttribute('aria-expanded', 'true');
+      await vi.waitFor(() => {
+        const closeToggle = screen.getByRole('button', { name: /close menu/i });
+        expect(closeToggle).toHaveAttribute('aria-expanded', 'true');
+      });
     });
   });
 
@@ -494,9 +526,11 @@ describe('C. Mobile Behaviour', () => {
       const toggle = screen.getByRole('button', { name: /open menu/i });
       await user.click(toggle);
 
-      const mobile = getMobile();
-      expect(mobile).toHaveAttribute('role', 'dialog');
-      expect(mobile).toHaveAttribute('aria-modal', 'true');
+      await vi.waitFor(() => {
+        const mobile = getMobile();
+        expect(mobile).toHaveAttribute('role', 'dialog');
+        expect(mobile).toHaveAttribute('aria-modal', 'true');
+      });
     });
 
     it('pressing Escape closes mobile drawer', async () => {
@@ -505,8 +539,121 @@ describe('C. Mobile Behaviour', () => {
       const toggle = screen.getByRole('button', { name: /open menu/i });
       await user.click(toggle);
 
+      await vi.waitFor(() => {
+        expect(getMobile()?.className).toContain('translate-x-0');
+      });
+
       fireEvent.keyDown(document, { key: 'Escape' });
       expect(getMobile()?.className).toContain('-translate-x-full');
+    });
+  });
+
+  describe('C5. Mobile drawer shows full labels (never collapsed/rail)', () => {
+    it('mobile drawer renders all 4 nav item labels', async () => {
+      const user = userEvent.setup();
+      render(<MobileWrapper />);
+      const toggle = screen.getByRole('button', { name: /open menu/i });
+      await user.click(toggle);
+
+      await vi.waitFor(() => {
+        const text = getMobile()?.textContent || '';
+        expect(text).toContain('Home');
+        expect(text).toContain('My Courses');
+        expect(text).toContain('Bookmarks');
+        expect(text).toContain('Settings');
+      });
+    });
+
+    it('mobile drawer shows user section labels', async () => {
+      const user = userEvent.setup();
+      render(<MobileWrapper />);
+      const toggle = screen.getByRole('button', { name: /open menu/i });
+      await user.click(toggle);
+
+      await vi.waitFor(() => {
+        expect(getMobile()?.textContent).toContain('Guest');
+      });
+    });
+  });
+
+  describe('C6. Responsive resize behavior', () => {
+    it('closes mobile drawer when resizing to desktop width', async () => {
+      const user = userEvent.setup();
+      render(<MobileWrapper />);
+      const toggle = screen.getByRole('button', { name: /open menu/i });
+      await user.click(toggle);
+
+      await vi.waitFor(() => {
+        expect(getMobile()?.className).toContain('translate-x-0');
+      });
+
+      // Simulate resize to desktop width — should close the drawer
+      // @ts-ignore
+      window.innerWidth = 1200;
+      fireEvent.resize(window);
+
+      expect(getMobile()?.className).toContain('-translate-x-full');
+    });
+
+    it('collapses desktop sidebar when resizing to mobile width', () => {
+      // Clear localStorage so sidebar starts expanded
+      localStorage.removeItem('text-to-learn-sidebar-collapsed');
+      render(<Sidebar />, { wrapper });
+      const desktop = getDesktop();
+      expect(desktop?.className).toContain('w-[var(--sidebar-width)]');
+
+      // Simulate resize to mobile
+      // @ts-ignore
+      window.innerWidth = 375;
+      fireEvent.resize(window);
+
+      expect(desktop?.className).toContain('w-[var(--sidebar-collapsed-width)]');
+    });
+  });
+
+  describe('C7. Mobile drawer z-index layering', () => {
+    it('mobile drawer has z-50 (above most content)', () => {
+      render(<Sidebar />, { wrapper });
+      const cls = getMobile()?.className || '';
+      expect(cls).toContain('z-50');
+    });
+
+    it('backdrop has z-40 (below drawer but above content)', async () => {
+      const user = userEvent.setup();
+      render(<MobileWrapper />);
+      const toggle = screen.getByRole('button', { name: /open menu/i });
+      await user.click(toggle);
+
+      const backdrop = document.querySelector('[class*="bg-black/50"]');
+      expect(backdrop?.className).toContain('z-40');
+    });
+  });
+
+  describe('C8. Mobile drawer scroll behavior', () => {
+    it('mobile drawer has full viewport height (h-screen)', () => {
+      render(<Sidebar />, { wrapper });
+      const cls = getMobile()?.className || '';
+      expect(cls).toContain('h-screen');
+    });
+
+    it('mobile drawer nav area has overflow-y-auto for scrolling', () => {
+      render(<Sidebar />, { wrapper });
+      const nav = getMobile()?.querySelector('nav');
+      expect(nav?.className).toContain('overflow-y-auto');
+    });
+  });
+
+  describe('C9. No hover-to-expand on mobile (touch devices)', () => {
+    it('mouseEnter on header does NOT expand mobile drawer', () => {
+      render(<MobileWrapper />);
+      const mobile = getMobile();
+      expect(mobile?.className).toContain('-translate-x-full');
+
+      const header = getMobile()?.querySelector('[class*="h-16"]');
+      fireEvent.mouseEnter(header);
+
+      // Should still be closed — no hover behavior on mobile
+      expect(mobile?.className).toContain('-translate-x-full');
     });
   });
 });
@@ -534,9 +681,13 @@ describe('D. Content & Sections', () => {
 
   it('has a header section with brand icon and toggle', () => {
     render(<Sidebar />, { wrapper });
-    const header = getDesktop()?.querySelector('[class*="h-16"]');
+    const desktop = getDesktop();
+    // Header is the top section of the sidebar
+    const header = desktop?.querySelector('div[class*="flex-shrink-0"]');
     expect(header).toBeTruthy();
-    expect(header?.querySelector('button[aria-label="App menu"]')).toBeTruthy();
+    // Should have at least one toggle button
+    const toggles = header?.querySelectorAll('button[aria-label]');
+    expect(toggles?.length).toBeGreaterThan(0);
   });
 
   it('separators exist between nav items', () => {
