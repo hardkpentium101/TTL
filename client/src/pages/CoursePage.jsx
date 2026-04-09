@@ -222,7 +222,7 @@ export default function CoursePage() {
           <div className="absolute bottom-0 left-1/4 w-48 h-48 rounded-full bg-[var(--accent-secondary)]/10 blur-3xl" />
         </div>
         
-        <div className="relative max-w-5xl mx-auto px-6 py-8 pt-24">
+        <div className="relative max-w-4xl mx-auto px-6 py-8 pt-24">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 mb-6 animate-fade-in">
             {/* Mobile course navigation button */}
@@ -304,12 +304,12 @@ export default function CoursePage() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="flex gap-8">
           {/* Modules Sidebar - Desktop */}
           <aside className="hidden lg:block w-80 flex-shrink-0">
             <div className="sticky top-8">
-              <div className="card p-4">
+              <div className="card p-6">
                 <h3 className="font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
                   <svg className="w-5 h-5 text-[var(--accent-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -474,7 +474,7 @@ export default function CoursePage() {
                 )}
 
                 {/* Lesson Content */}
-                <div className="card p-6 md:p-8 mb-6">
+                <div className="card p-6 mb-6">
                   <LessonRenderer content={currentLesson.content} />
                 </div>
 

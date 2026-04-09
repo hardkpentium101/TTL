@@ -9,6 +9,7 @@ import CoursePage from './pages/CoursePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import BookmarksPage from './pages/BookmarksPage';
 import MyCoursesPage from './pages/MyCoursesPage';
+import SettingsPage from './pages/SettingsPage';
 import { SidebarProvider, SidebarMobileToggle } from './context/SidebarContext';
 
 function AuthSync() {
@@ -27,16 +28,19 @@ function AppLayout() {
   return (
     <SidebarProvider>
       <div className="flex min-h-screen bg-[var(--bg-primary)]">
-        {/* Sidebar - sticky on desktop, fixed drawer on mobile */}
+        {/* Skip to content link (accessibility) */}
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
+
+        {/* Sidebar — desktop: sticky, mobile: drawer */}
         <Sidebar />
 
         <main className="flex-1 flex flex-col min-h-screen transition-all duration-300">
-          {/* Top Bar with App Name + Mobile Menu Toggle */}
-          <header className="sticky top-0 z-30 bg-[var(--bg-card)]/80 backdrop-blur-md border-b border-[var(--border-light)]">
+          {/* Top Bar */}
+          <header className="sticky top-0 z-[var(--z-sticky)] bg-[var(--bg-card)]/80 backdrop-blur-md border-b border-[var(--border-light)]" role="banner">
             <div className="flex items-center justify-between px-4 md:px-6 py-2">
-              {/* Mobile sidebar toggle */}
               <SidebarMobileToggle />
-
               <div className="flex items-center gap-2 ml-auto">
                 <h1 className="text-sm font-semibold text-[var(--text-secondary)] hidden sm:block" style={{ fontFamily: 'var(--font-display)' }}>
                   Text-to-Learn
@@ -45,15 +49,15 @@ function AppLayout() {
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto">
+          <div id="main-content" className="flex-1 overflow-y-auto" role="main">
             <Outlet />
           </div>
 
-          <footer className="border-t border-[var(--border-light)] py-6 mt-auto">
+          <footer className="border-t border-[var(--border-light)] py-6 mt-auto" role="contentinfo">
             <div className="max-w-5xl mx-auto px-6">
               <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center">
+                  <div className="w-8 h-8 bg-[var(--accent-primary)] flex items-center justify-center">
                     <span className="text-white text-sm font-bold">T</span>
                   </div>
                   <p className="text-sm text-[var(--text-muted)]">
@@ -96,22 +100,7 @@ function App() {
 
               <Route path="settings" element={
                 <ProtectedRoute>
-                  <div className="max-w-4xl mx-auto px-6 py-12">
-                    <div className="text-center card p-12">
-                      <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-[var(--bg-tertiary)] flex items-center justify-center">
-                        <svg className="w-8 h-8 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      </div>
-                      <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: 'var(--font-display)' }}>
-                        Settings
-                      </h1>
-                      <p className="text-[var(--text-secondary)] max-w-md mx-auto">
-                        Manage your account settings and preferences.
-                      </p>
-                    </div>
-                  </div>
+                  <SettingsPage />
                 </ProtectedRoute>
               } />
 

@@ -85,78 +85,92 @@ export default function MyCoursesPage() {
 
   if (courses.length === 0) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <div className="text-center card p-12">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-[var(--accent-primary)]/10 flex items-center justify-center">
-            <svg className="w-8 h-8 text-[var(--accent-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
+      <div className="min-h-screen relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-gradient-to-br from-[var(--accent-primary)]/5 to-transparent blur-3xl" />
+          <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-gradient-to-tr from-[var(--accent-secondary)]/5 to-transparent blur-3xl" />
+        </div>
+        <div className="max-w-4xl mx-auto px-6 py-12">
+          <div className="text-center card p-12">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-[var(--accent-primary)]/10 flex items-center justify-center">
+              <svg className="w-8 h-8 text-[var(--accent-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: 'var(--font-display)' }}>
+              My Courses
+            </h1>
+            <p className="text-[var(--text-secondary)] mb-6 max-w-md mx-auto">
+              Your saved courses will appear here. Generate your first course to get started!
+            </p>
+            <button
+              onClick={() => navigate('/')}
+              className="btn btn-primary"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Generate Course
+            </button>
           </div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-3" style={{ fontFamily: 'var(--font-display)' }}>
-            My Courses
-          </h1>
-          <p className="text-[var(--text-secondary)] mb-6 max-w-md mx-auto">
-            Your saved courses will appear here. Generate your first course to get started!
-          </p>
-          <button
-            onClick={() => navigate('/')}
-            className="btn btn-primary"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Generate Course
-          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-12">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2" style={{ fontFamily: 'var(--font-display)' }}>
-          My Courses
-        </h1>
-        <p className="text-[var(--text-secondary)]">
-          {courses.length} course{courses.length !== 1 ? 's' : ''}
-        </p>
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-gradient-to-br from-[var(--accent-primary)]/5 to-transparent blur-3xl" />
+        <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-gradient-to-tr from-[var(--accent-secondary)]/5 to-transparent blur-3xl" />
       </div>
+      <div className="max-w-4xl mx-auto px-6 py-12">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2" style={{ fontFamily: 'var(--font-display)' }}>
+            My Courses
+          </h1>
+          <p className="text-[var(--text-secondary)]">
+            {courses.length} course{courses.length !== 1 ? 's' : ''}
+          </p>
+        </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {courses.map((course) => (
-          <button
-            key={course.id || course._id}
-            onClick={() => handleCourseClick(course)}
-            className="card p-6 text-left hover:shadow-lg transition-shadow duration-200 group"
-          >
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center flex-shrink-0 shadow-md group-hover:shadow-lg transition-shadow">
-                <span className="text-white text-lg font-bold">
-                  {(course.title || 'C')[0].toUpperCase()}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2 group-hover:text-[var(--accent-primary)] transition-colors truncate">
-                  {course.title}
-                </h3>
-                <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
-                  <span className="flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    {course.modules_count || course.modules?.length || 0} modules
+        <div className="grid gap-6 md:grid-cols-2">
+          {courses.map((course) => (
+            <button
+              key={course.id || course._id}
+              onClick={() => handleCourseClick(course)}
+              className="card p-6 text-left hover:shadow-lg transition-shadow duration-200 group"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center flex-shrink-0 shadow-md group-hover:shadow-lg transition-shadow">
+                  <span className="text-white text-lg font-bold">
+                    {(course.title || 'C')[0].toUpperCase()}
                   </span>
-                  {course.created_at && (
-                    <span>
-                      {new Date(course.created_at).toLocaleDateString()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2 group-hover:text-[var(--accent-primary)] transition-colors truncate">
+                    {course.title}
+                  </h3>
+                  <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
+                    <span className="flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      {course.modules_count || course.modules?.length || 0} modules
                     </span>
-                  )}
+                    {course.created_at && (
+                      <span>
+                        {new Date(course.created_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </button>
-        ))}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

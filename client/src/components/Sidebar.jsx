@@ -254,7 +254,6 @@ export default function Sidebar() {
           className={`${navItemBase} ${isItemActive && !isMyCourses ? navItemActive : ''}`}
           title={isCollapsed && !isMyCourses ? item.label : undefined}
           aria-current={isItemActive && !isMyCourses ? 'page' : undefined}
-          role="menuitem"
         >
           <span className="w-[18px] h-[18px] flex-shrink-0" aria-hidden="true">
             {item.icon}
@@ -373,7 +372,6 @@ export default function Sidebar() {
       ref={navScrollRef}
       className="flex-1 px-3 py-3 space-y-1 overflow-y-auto overflow-x-hidden"
       aria-label="Primary navigation"
-      role="menu"
     >
       {NAV_ITEMS.map((item, index) => renderNavItem(item, index))}
     </nav>

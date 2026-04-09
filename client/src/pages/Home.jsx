@@ -200,7 +200,7 @@ export default function Home() {
       </div>
 
       {/* Hero Section */}
-      <div className="relative pt-20 pb-8 md:pt-16 md:pb-12 px-4 md:px-6">
+      <div className="relative pt-16 pb-8 px-6">
         <div className="max-w-3xl mx-auto text-center">
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-light)] mb-6 md:mb-8 animate-fade-in">
@@ -348,7 +348,7 @@ export default function Home() {
       </div>
 
       {/* Example Topics Section */}
-      <div className="relative px-4 md:px-6 pb-16 md:pb-20">
+      <div className="relative px-6 pb-16 md:pb-20">
         <div className="max-w-5xl mx-auto">
           {/* Section header */}
           <div className="text-center mb-8 md:mb-10">

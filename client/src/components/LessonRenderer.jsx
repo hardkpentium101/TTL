@@ -19,20 +19,27 @@ const blockComponents = {
 
 export default function LessonRenderer({ content }) {
   if (!content || !Array.isArray(content)) {
-    return <p className="text-gray-500">No content available</p>;
+    return <p className="text-[var(--text-muted)]">No content available</p>;
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-6" role="article" aria-label="Lesson content">
       {content.map((block, index) => {
         const BlockComponent = blockComponents[block.type];
         if (!BlockComponent) {
           console.warn(`Unknown block type: ${block.type}`);
-          return null;
+          return (
+            <div
+              key={`unknown-${index}`}
+              className="card p-4 border-l-4 border-l-[var(--warning)] bg-[var(--warning-bg)]"
+            >
+              <p className="text-sm text-[var(--text-muted)]">
+                Unsupported content block: <code className="font-mono text-[var(--text-secondary)]">{block.type}</code>
+              </p>
+            </div>
+          );
         }
-        // Create unique key based on block type and content
-        const uniqueKey = `${block.type}-${index}-${block.text || block.query || block.question || ''}`.slice(0, 50);
-        return <BlockComponent key={uniqueKey} {...block} />;
+        return <BlockComponent key={`${block.type}-${index}`} {...block} />;
       })}
     </div>
   );

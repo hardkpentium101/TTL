@@ -4,22 +4,19 @@ import { api } from '../utils/api';
 export default function LessonAudioPlayer({ lesson }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [language, setLanguage] = useState('en-US'); // Default to English
+  const [language, setLanguage] = useState('en-US');
   const [audioUrl, setAudioUrl] = useState(null);
   const [error, setError] = useState('');
   const [usingGeminiTTS, setUsingGeminiTTS] = useState(false);
   const audioRef = useRef(null);
 
-  // Extract lesson text content for TTS
   const getLessonText = () => {
     if (!lesson?.content) return '';
-    
     const textBlocks = lesson.content
       .filter(block => block.type === 'paragraph' || block.type === 'heading')
       .map(block => block.text)
       .join('. ');
-    
-    return textBlocks.substring(0, 500); // Limit to 500 chars for demo
+    return textBlocks.substring(0, 500);
   };
 
   const synthesizeSpeech = async (lang) => {
@@ -34,79 +31,51 @@ export default function LessonAudioPlayer({ lesson }) {
 
     try {
       const response = await api.post('/api/tts/synthesize', {
-        text: text,
+        text,
         language: lang
       });
 
       const data = response.data;
-      console.log('TTS Response:', data);
-
-      // Track if we're using Gemini TTS
       setUsingGeminiTTS(!data.useBrowserTTS && !!data.audioContent);
 
-      // Check if we got real audio from Gemini TTS
       if (data.audioContent && !data.useBrowserTTS) {
-        console.log('Using Gemini TTS, audio length:', data.audioContent.length);
-        
         try {
-          // Convert base64 audio to ArrayBuffer
           const audioData = data.audioContent;
           const mimeType = data.mimeType || 'audio/wav';
-          
-          // Decode base64 to binary
           const binaryString = atob(audioData);
           const bytes = new Uint8Array(binaryString.length);
           for (let i = 0; i < binaryString.length; i++) {
             bytes[i] = binaryString.charCodeAt(i);
           }
-          
-          console.log('Audio bytes created:', bytes.length);
-          
-          // For PCM audio (L16), use Web Audio API instead of HTML5 audio
+
           if (mimeType.includes('L16') || mimeType.includes('pcm')) {
-            console.log('Using Web Audio API for PCM audio');
-            
-            // Parse PCM parameters from mime type: audio/L16;codec=pcm;rate=24000
             const rateMatch = mimeType.match(/rate=(\d+)/);
             const sampleRate = rateMatch ? parseInt(rateMatch[1]) : 24000;
-            
-            // Convert PCM bytes to AudioBuffer
             const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate });
             const audioBuffer = audioContext.createBuffer(1, bytes.length / 2, sampleRate);
             const channelData = audioBuffer.getChannelData(0);
-            
-            // Convert 16-bit PCM to float32 (-1.0 to 1.0)
             const dataView = new DataView(bytes.buffer);
             for (let i = 0; i < bytes.length / 2; i++) {
-              const sample = dataView.getInt16(i * 2, true); // little-endian
-              channelData[i] = sample / 32768.0; // Normalize to -1.0 to 1.0
+              const sample = dataView.getInt16(i * 2, true);
+              channelData[i] = sample / 32768.0;
             }
-            
-            // Play the audio
+
             const source = audioContext.createBufferSource();
             source.buffer = audioBuffer;
             source.connect(audioContext.destination);
-            
             source.onended = () => {
               setIsPlaying(false);
               setIsLoading(false);
               audioContext.close();
             };
-            
             source.start(0);
             setIsPlaying(true);
             setIsLoading(false);
-            
-            // Store context for stopping
             setAudioUrl(audioContext);
           } else {
-            // For MP3/WAV, use HTML5 audio
             const blob = new Blob([bytes], { type: mimeType });
             const url = URL.createObjectURL(blob);
             setAudioUrl(url);
-            console.log('Audio blob created, URL:', url);
-
-            // Auto-play
             setTimeout(() => {
               if (audioRef.current) {
                 audioRef.current.play();
@@ -119,7 +88,6 @@ export default function LessonAudioPlayer({ lesson }) {
           console.error('Error playing audio:', err);
           setError('Failed to play audio: ' + err.message);
           setIsLoading(false);
-          // Fallback to browser TTS
           if ('speechSynthesis' in window) {
             speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
@@ -128,43 +96,26 @@ export default function LessonAudioPlayer({ lesson }) {
             setIsPlaying(true);
           }
         }
-      }
-      // Fallback to browser SpeechSynthesis
-      else {
-        console.log('Fallback to browser TTS, useBrowserTTS:', data.useBrowserTTS, 'hasAudio:', !!data.audioContent);
-        
+      } else {
         if ('speechSynthesis' in window) {
-          // Cancel any ongoing speech
           speechSynthesis.cancel();
-
           const utterance = new SpeechSynthesisUtterance(text);
           utterance.lang = lang;
           utterance.rate = 1.0;
           utterance.pitch = 1.0;
           utterance.volume = 1.0;
 
-          // Try to find a voice matching the language
           const voices = speechSynthesis.getVoices();
           const preferredVoice = voices.find(voice =>
             voice.lang.startsWith(lang.split('-')[0])
           );
-          if (preferredVoice) {
-            utterance.voice = preferredVoice;
-          }
+          if (preferredVoice) utterance.voice = preferredVoice;
 
-          utterance.onstart = () => {
-            setIsPlaying(true);
-            setIsLoading(false);
-          };
-
-          utterance.onend = () => {
-            setIsPlaying(false);
-          };
-
+          utterance.onstart = () => { setIsPlaying(true); setIsLoading(false); };
+          utterance.onend = () => { setIsPlaying(false); };
           utterance.onerror = (event) => {
             setIsPlaying(false);
             setIsLoading(false);
-            console.error('Speech synthesis error:', event);
             setError('Speech synthesis failed. Please try again.');
           };
 
@@ -201,20 +152,15 @@ export default function LessonAudioPlayer({ lesson }) {
   };
 
   const handleStop = () => {
-    // Stop Web Audio API playback
     if (audioUrl && typeof audioUrl === 'object' && audioUrl.close) {
       audioUrl.close();
       setAudioUrl(null);
       setIsPlaying(false);
-    }
-    // Stop HTML5 audio
-    else if (audioRef.current) {
+    } else if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
       setIsPlaying(false);
-    }
-    // Stop browser speech synthesis
-    else if ('speechSynthesis' in window) {
+    } else if ('speechSynthesis' in window) {
       speechSynthesis.cancel();
       setIsPlaying(false);
     }
@@ -224,14 +170,12 @@ export default function LessonAudioPlayer({ lesson }) {
     setLanguage(newLang);
     handleStop();
     setAudioUrl(null);
-    // Auto-play in new language
     setTimeout(() => synthesizeSpeech(newLang), 100);
   };
 
   useEffect(() => {
     return () => {
       handleStop();
-      // Clean up blob URL if it's a string
       if (audioUrl && typeof audioUrl === 'string') {
         URL.revokeObjectURL(audioUrl);
       }
@@ -247,46 +191,42 @@ export default function LessonAudioPlayer({ lesson }) {
   ];
 
   return (
-    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-lg p-4 border border-indigo-200 dark:border-indigo-800">
+    <div className="card p-4">
       <div className="flex items-center justify-between mb-3">
-        <h4 className="font-semibold text-indigo-800 dark:text-indigo-300 flex items-center gap-2">
-          <span>🔊</span> Audio Narration
+        <h4 className="font-semibold text-[var(--text-primary)] flex items-center gap-2" style={{ fontFamily: 'var(--font-display)' }}>
+          <span aria-hidden="true">🔊</span> Audio Narration
         </h4>
-        
-        {/* Language Selector */}
+
+        <label htmlFor="audio-lang-select" className="sr-only">Language</label>
         <select
+          id="audio-lang-select"
           value={language}
           onChange={(e) => handleLanguageChange(e.target.value)}
-          className="text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+          className="input text-sm py-1.5 px-3 w-auto"
           disabled={isLoading}
         >
           {languages.map((lang) => (
-            <option key={lang.code} value={lang.code}>
-              {lang.name}
-            </option>
+            <option key={lang.code} value={lang.code}>{lang.name}</option>
           ))}
         </select>
       </div>
 
-      {/* Audio Controls */}
       <div className="flex items-center gap-3">
         {!isPlaying ? (
           <button
             onClick={handlePlay}
             disabled={isLoading}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2.5 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn btn-primary text-sm py-2.5"
+            aria-busy={isLoading}
           >
             {isLoading ? (
               <>
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
+                <div className="spinner w-4 h-4 border-2" />
                 Generating...
               </>
             ) : (
               <>
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M8 5v14l11-7z" />
                 </svg>
                 Play
@@ -297,18 +237,20 @@ export default function LessonAudioPlayer({ lesson }) {
           <>
             <button
               onClick={handlePause}
-              className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-medium px-5 py-2.5 rounded-lg transition-all"
+              className="btn text-sm py-2.5"
+              style={{ background: 'var(--warning)', color: 'black', borderColor: 'var(--warning-border)' }}
             >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
               </svg>
               Pause
             </button>
             <button
               onClick={handleStop}
-              className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white font-medium px-5 py-2.5 rounded-lg transition-all"
+              className="btn text-sm py-2.5"
+              style={{ background: 'var(--error)', color: 'white', borderColor: 'var(--error-border)' }}
             >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M6 6h12v12H6z" />
               </svg>
               Stop
@@ -316,14 +258,13 @@ export default function LessonAudioPlayer({ lesson }) {
           </>
         )}
 
-        {/* Progress indicator */}
         {isPlaying && (
           <div className="flex items-center gap-2 flex-1">
-            <div className="flex gap-1">
+            <div className="flex gap-1" aria-hidden="true">
               {[...Array(5)].map((_, i) => (
                 <div
                   key={i}
-                  className="w-1 bg-indigo-500 rounded-full animate-pulse"
+                  className="w-1 bg-[var(--accent-primary)] rounded-full animate-pulse"
                   style={{
                     height: `${[12, 20, 16, 24, 10][i]}px`,
                     animationDelay: `${i * 0.1}s`
@@ -331,14 +272,13 @@ export default function LessonAudioPlayer({ lesson }) {
                 />
               ))}
             </div>
-            <span className="text-sm text-indigo-600 dark:text-indigo-400">
+            <span className="text-sm text-[var(--text-secondary)]">
               Playing in {languages.find(l => l.code === language)?.label}
             </span>
           </div>
         )}
       </div>
 
-      {/* Hidden audio element for API-generated audio */}
       {audioUrl && (
         <audio
           ref={audioRef}
@@ -350,18 +290,16 @@ export default function LessonAudioPlayer({ lesson }) {
         />
       )}
 
-      {/* Error Message */}
       {error && (
-        <div className="mt-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-3 py-2 rounded-lg text-sm">
+        <div className="mt-3 bg-[var(--error-bg)] text-[var(--error)] px-3 py-2 text-sm border border-[var(--error-border)]" role="alert">
           {error}
         </div>
       )}
 
-      {/* Info text */}
-      <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+      <p className="mt-3 text-xs text-[var(--text-muted)]">
         📖 Reading: {getLessonText().length} characters •
         {usingGeminiTTS ? (
-          <span className="text-green-600 dark:text-green-400">🎙️ Using Gemini 2.5 Flash TTS</span>
+          <span className="text-[var(--success)]">🎙️ Using Gemini 2.5 Flash TTS</span>
         ) : (
           <span>🔊 Using browser SpeechSynthesis</span>
         )}

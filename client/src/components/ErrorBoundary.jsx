@@ -1,11 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from 'react';
 
-/**
- * Error Boundary Component
- * Catches JavaScript errors anywhere in the component tree,
- * logs those errors, and displays a fallback UI instead of crashing.
- */
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -16,36 +11,17 @@ class ErrorBoundary extends React.Component {
     };
   }
 
-  static getDerivedStateFromError(_error) {  // eslint-disable-line no-unused-vars
-    // Update state so the next render will show the fallback UI
+  static getDerivedStateFromError(_error) {
     return { hasError: true };
   }
 
   componentDidCatch(_error, errorInfo) {
-    // Log the error to console (in production, send to error reporting service)
     console.error('[ErrorBoundary] Uncaught error:', _error, errorInfo);
-
-    this.setState({
-      error: _error,
-      errorInfo
-    });
-
-    // Send to error reporting service in production
-    if (process.env.NODE_ENV === 'production') {
-      // TODO: Implement error reporting
-      console.log('Error reported to service');
-    }
+    this.setState({ error: _error, errorInfo });
   }
 
   handleReset = () => {
-    this.setState({
-      hasError: false,
-      error: null,
-      errorInfo: null
-    });
-    
-    // Reload the page to reset state
-    window.location.reload();
+    this.setState({ hasError: false, error: null, errorInfo: null });
   };
 
   handleGoHome = () => {
@@ -55,14 +31,15 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
-          <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 text-center">
+        <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)] px-4" role="alert">
+          <div className="max-w-md w-full card p-8 text-center">
             <div className="mb-6">
               <svg
-                className="mx-auto h-16 w-16 text-red-500"
+                className="mx-auto h-16 w-16 text-[var(--error)]"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"
@@ -72,39 +49,38 @@ class ErrorBoundary extends React.Component {
                 />
               </svg>
             </div>
-            
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+
+            <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2" style={{ fontFamily: 'var(--font-display)' }}>
               Oops! Something went wrong
             </h1>
-            
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              We encountered an unexpected error. Don't worry, your data is safe.
+
+            <p className="text-[var(--text-secondary)] mb-6">
+              We encountered an unexpected error. Don&apos;t worry, your data is safe.
             </p>
 
-            {/* Error details (only in development) */}
             {process.env.NODE_ENV === 'development' && this.state.error && (
-              <details className="mb-6 text-left bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
-                <summary className="cursor-pointer font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <details className="mb-6 text-left bg-[var(--bg-tertiary)] p-4 border border-[var(--border-light)]">
+                <summary className="cursor-pointer font-medium text-[var(--text-secondary)] mb-2">
                   Error Details (Development)
                 </summary>
-                <pre className="text-xs text-red-600 dark:text-red-400 overflow-auto max-h-48">
+                <pre className="text-xs text-[var(--error)] overflow-auto max-h-48">
                   {this.state.error.toString()}
                   {this.state.errorInfo?.componentStack}
                 </pre>
               </details>
             )}
-            
+
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={this.handleReset}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+                className="btn btn-primary"
               >
                 Try Again
               </button>
-              
+
               <button
                 onClick={this.handleGoHome}
-                className="px-6 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-medium rounded-lg transition-colors"
+                className="btn btn-secondary"
               >
                 Go Home
               </button>
@@ -118,11 +94,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-/**
- * Higher-Order Component wrapper for Error Boundary
- * Usage: withErrorBoundary(MyComponent)
- */
-export function withErrorBoundary(_WrappedComponent) {  // eslint-disable-line no-unused-vars
+export function withErrorBoundary(_WrappedComponent) {
   return function WithErrorBoundary(props) {
     return (
       <ErrorBoundary>
@@ -132,11 +104,6 @@ export function withErrorBoundary(_WrappedComponent) {  // eslint-disable-line n
   };
 }
 
-/**
- * Hook-based error handling for functional components
- * Returns error state and reset function
- * eslint-disable react-refresh/only-export-components
- */
 export function useErrorHandler() {
   const [error, setError] = React.useState(null);
 

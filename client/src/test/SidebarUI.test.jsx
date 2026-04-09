@@ -61,10 +61,10 @@ function getDesktopSidebar() {
   return document.querySelector('[data-sidebar-desktop="true"]');
 }
 
-// Helper: get all desktop nav links
+// Helper: get all desktop nav links (works even when hidden via CSS)
 function getDesktopNavLinks() {
   const sidebar = getDesktopSidebar();
-  return sidebar ? sidebar.querySelectorAll('nav a[role="menuitem"]') : [];
+  return sidebar ? sidebar.querySelectorAll('nav a') : [];
 }
 
 describe('Sidebar - Consistent Icon Sizing', () => {
@@ -396,7 +396,8 @@ describe('Sidebar - Accessibility', () => {
     render(<Sidebar />, { wrapper });
     const nav = getDesktopSidebar()?.querySelector('nav[aria-label="Primary navigation"]');
     expect(nav).toBeInTheDocument();
-    expect(nav).toHaveAttribute('role', 'menu');
+    // Uses semantic <nav> element instead of role="menu" for better accessibility
+    expect(nav?.tagName).toBe('NAV');
   });
 
   it('should have aria-current on active link', () => {
@@ -426,9 +427,14 @@ describe('Sidebar - Accessibility', () => {
     });
   });
 
-  it('should have menuitem role on nav links', () => {
+  it('should have semantic nav links (not role=menuitem)', () => {
     render(<Sidebar />, { wrapper });
     const navLinks = getDesktopNavLinks();
-    expect(navLinks.length).toBeGreaterThan(0);
+    expect(navLinks.length).toBe(4);
+    // Should NOT use role="menuitem" — regular <a> tags are more accessible
+    navLinks.forEach(link => {
+      expect(link).not.toHaveAttribute('role');
+      expect(link.tagName).toBe('A');
+    });
   });
 });
