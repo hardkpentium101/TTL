@@ -349,9 +349,13 @@ describe('B. Desktop Behaviour', () => {
       const link = desktop?.querySelector('nav a[href="/my-courses"]');
       await user.click(link);
 
+      // Sidebar should expand immediately
       expect(desktop?.className).toContain('w-[var(--sidebar-width)]');
-      const group = desktop?.querySelector('[role="group"][aria-label="Your courses"]');
-      expect(group).toBeTruthy();
+      // Sub-menu opens after 200ms animation
+      await vi.waitFor(() => {
+        const group = desktop?.querySelector('[role="group"][aria-label="Your courses"]');
+        expect(group).toBeTruthy();
+      }, { timeout: 500 });
     });
 
     it('sub-menu closes when sidebar is collapsed', async () => {

@@ -300,9 +300,13 @@ export default function Sidebar() {
             if (isMyCourses) {
               e.preventDefault();
               if (isCollapsed) {
+                // Expand first, then open sub-menu after animation completes
                 toggleCollapsed();
+                setTimeout(() => setMyCoursesOpen(true), 200);
+              } else {
+                // Already expanded — toggle sub-menu
+                setMyCoursesOpen(prev => !prev);
               }
-              setMyCoursesOpen(true);
             } else {
               closeMobile();
             }
