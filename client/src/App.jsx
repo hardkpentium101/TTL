@@ -27,7 +27,7 @@ function AuthSync() {
 function AppLayout() {
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen bg-[var(--bg-primary)]">
+      <div className="flex h-screen bg-[var(--bg-primary)] overflow-hidden">
         {/* Skip to content link (accessibility) */}
         <a href="#main-content" className="skip-link">
           Skip to main content
@@ -36,7 +36,7 @@ function AppLayout() {
         {/* Sidebar — desktop: sticky, mobile: drawer */}
         <Sidebar />
 
-        <main className="flex-1 flex flex-col min-h-screen transition-all duration-300">
+        <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
           {/* Top Bar */}
           <header className="sticky top-0 z-[var(--z-sticky)] bg-[var(--bg-card)]/80 backdrop-blur-md border-b border-[var(--border-light)]" role="banner">
             <div className="flex items-center justify-between px-4 md:px-6 py-2">

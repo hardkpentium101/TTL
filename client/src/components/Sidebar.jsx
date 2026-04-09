@@ -45,11 +45,23 @@ const NAV_ITEMS = [
   },
 ];
 
+const COLLAPSED_STORAGE_KEY = 'text-to-learn-sidebar-collapsed';
+
+// Responsive defaults per breakpoint
+function getDefaultCollapsed() {
+  const w = window.innerWidth;
+  if (w < 768) return true;   // mobile: hidden (off-canvas)
+  if (w < 1024) return true;  // tablet: collapsed (rail)
+  return false;               // desktop: expanded
+}
+
 export default function Sidebar() {
   const [isHoveringAppArea, setIsHoveringAppArea] = useState(false);
+  const [hoverExpandTimer, setHoverExpandTimer] = useState(null);
   const [userCourses, setUserCourses] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [myCoursesOpen, setMyCoursesOpen] = useState(false);
+  const [myCoursesFlyoutAnchor, setMyCoursesFlyoutAnchor] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, user, login, logout, isLoading } = useAuth();
@@ -57,6 +69,7 @@ export default function Sidebar() {
   const sidebarRef = useRef(null);
   const navScrollRef = useRef(null);
   const firstFocusableRef = useRef(null);
+  const myCoursesBtnRef = useRef(null);
 
   const isActive = (path) => location.pathname === path;
 
@@ -90,20 +103,47 @@ export default function Sidebar() {
     if (!isMobileOpen) setIsHoveringAppArea(false);
   }, [isMobileOpen]);
 
-  // When viewport crosses the desktop breakpoint (lg = 1024px),
-  // force-collapse the sidebar and reset hover so it never starts
-  // expanded on desktop after being mobile.
+  // When viewport crosses breakpoints, apply responsive defaults.
+  // Also closes the mobile drawer when resizing up.
   useEffect(() => {
     const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        closeMobile();
+      }
       if (window.innerWidth < 1024) {
         setCollapsed(true);
         setIsHoveringAppArea(false);
+        clearTimeout(hoverExpandTimer);
       }
     };
     handleResize(); // run on mount
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [setCollapsed]);
+  }, [setCollapsed, closeMobile, hoverExpandTimer]);
+
+  // Hover-to-expand (flyout) with 200ms delay to prevent accidental triggers
+  const handleHeaderMouseEnter = useCallback(() => {
+    if (isCollapsed && window.innerWidth >= 1024) {
+      const timer = setTimeout(() => {
+        setCollapsed(false);
+        setIsHoveringAppArea(true);
+      }, 200);
+      setHoverExpandTimer(timer);
+    }
+  }, [isCollapsed, setCollapsed]);
+
+  const handleHeaderMouseLeave = useCallback(() => {
+    clearTimeout(hoverExpandTimer);
+    setHoverExpandTimer(null);
+    setIsHoveringAppArea(false);
+  }, [hoverExpandTimer]);
+
+  // Close My Courses sub-menu whenever sidebar collapses
+  useEffect(() => {
+    if (isCollapsed) {
+      setMyCoursesOpen(false);
+    }
+  }, [isCollapsed]);
 
   // Click-outside-to-collapse (desktop only)
   useEffect(() => {
@@ -186,29 +226,27 @@ export default function Sidebar() {
     setIsHoveringAppArea(false);
   }, [toggleCollapsed]);
 
-  const toggleMyCourses = useCallback(() => {
-    setMyCoursesOpen(prev => !prev);
-  }, []);
-
   /*
    * Responsive strategy — two separate shells, CSS-driven:
    *
    *  Desktop (≥ 1024px / lg):  [data-sidebar-desktop]
-   *    - Visible, sticky, collapsible (280px ↔ 72px)
-   *    - Controlled by isCollapsed state
+   *    - sticky top-0, h-screen — stays visible while main content scrolls
+   *    - overflow-hidden on shell, flex-1 + overflow-y-auto on nav area
+   *    - Header and user section are flex-shrink-0 (never scroll away)
+   *    - Collapsible 280px ↔ 72px
    *
    *  Mobile (< 1024px):         [data-sidebar-mobile]
    *    - Fixed drawer, slides in from left
    *    - Controlled by isMobileOpen state
-   *    - backdrop + focus trap
+   *    - Backdrop + focus trap
+   *    - Auto-closes when resizing to desktop
    *
-   *  Only ONE shell is visible at any breakpoint. No JS breakpoint checks
-   *  for class switching — Tailwind handles it with `hidden lg:flex` and
-   *  `lg:hidden`.
+   *  Only ONE shell is visible at any breakpoint.
    */
 
   const desktopClasses = `
-    hidden lg:flex flex-col h-screen
+    hidden lg:flex flex-col
+    sticky top-0 h-screen
     bg-[var(--sidebar-bg)] border-r-[var(--sidebar-border-width)] border-[var(--border-light)]
     transition-all duration-[var(--sidebar-transition-speed)] ease-in-out overflow-hidden
     ${isCollapsed ? 'w-[var(--sidebar-collapsed-width)]' : 'w-[var(--sidebar-width)]'}
@@ -242,11 +280,25 @@ export default function Sidebar() {
     return (
       <div key={item.path} role="none">
         <Link
+          ref={isMyCourses ? myCoursesBtnRef : (index === 0 ? firstFocusableRef : undefined)}
           to={item.path}
+          onMouseEnter={() => {
+            if (isMyCourses && isCollapsed) {
+              setMyCoursesFlyoutAnchor(myCoursesBtnRef.current);
+            }
+          }}
+          onMouseLeave={() => {
+            if (isMyCourses && isCollapsed) {
+              setMyCoursesFlyoutAnchor(null);
+            }
+          }}
           onClick={(e) => {
             if (isMyCourses) {
               e.preventDefault();
-              toggleMyCourses();
+              if (isCollapsed) {
+                toggleCollapsed();
+              }
+              setMyCoursesOpen(true);
             } else {
               closeMobile();
             }
@@ -259,8 +311,10 @@ export default function Sidebar() {
             {item.icon}
           </span>
           <span
-            className={`whitespace-nowrap overflow-hidden transition-all duration-[var(--sidebar-transition-speed)] ease-in-out ${
-              isCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'
+            className={`whitespace-nowrap overflow-hidden transition-all ease-in-out ${
+              isCollapsed
+                ? 'opacity-0 w-0 duration-[var(--sidebar-transition-speed)] delay-0'
+                : 'opacity-100 w-auto duration-150'
             }`}
           >
             {item.label}
@@ -280,6 +334,7 @@ export default function Sidebar() {
           )}
         </Link>
 
+        {/* Inline sub-menu (expanded state) */}
         {isMyCourses && myCoursesOpen && !isCollapsed && (
           <div className="ml-4 mt-1 space-y-1" role="group" aria-label="Your courses">
             {userCourses.length > 0 ? (
@@ -332,10 +387,8 @@ export default function Sidebar() {
   const renderHeader = () => (
     <div
       className="h-16 flex items-center px-3 flex-shrink-0 relative border-b-[var(--sidebar-border-width)] border-[var(--border-light)] bg-[var(--sidebar-bg)]"
-      onMouseEnter={() => {
-        if (isCollapsed) setIsHoveringAppArea(true);
-      }}
-      onMouseLeave={() => setIsHoveringAppArea(false)}
+      onMouseEnter={handleHeaderMouseEnter}
+      onMouseLeave={handleHeaderMouseLeave}
     >
       <button
         ref={firstFocusableRef}
@@ -476,6 +529,48 @@ export default function Sidebar() {
         {renderNav()}
         {renderUserSection()}
       </aside>
+
+      {/* Flyout popover for "My Courses" when collapsed — desktop only */}
+      {myCoursesFlyoutAnchor && isCollapsed && userCourses.length > 0 && (
+        <div
+          className="hidden lg:block fixed z-50 card p-2 shadow-lg w-64 animate-fade-in"
+          role="group"
+          aria-label="Your courses"
+          style={{ left: '76px' }}
+          onMouseEnter={() => setMyCoursesFlyoutAnchor(myCoursesFlyoutAnchor)}
+          onMouseLeave={() => setMyCoursesFlyoutAnchor(null)}
+        >
+          <p className="text-xs font-bold text-[var(--text-muted)] uppercase px-2 pt-1 pb-2" style={{ fontFamily: 'var(--font-display)', letterSpacing: '0.05em' }}>
+            Your Courses
+          </p>
+          <div className="space-y-0.5 max-h-64 overflow-y-auto">
+            {userCourses.slice(0, 8).map((course) => (
+              <button
+                key={course.id || course._id}
+                onClick={(e) => {
+                  handleCourseClick(course, e);
+                  setMyCoursesFlyoutAnchor(null);
+                }}
+                className="w-full text-left px-2 py-2 text-sm text-[var(--text-tertiary)] hover:bg-[var(--sidebar-hover-bg)] hover:text-[var(--text-primary)] transition-colors rounded-none"
+              >
+                <div className="font-medium truncate">{course.title}</div>
+                <div className="text-xs text-[var(--text-muted)] mt-0.5">
+                  {course.modules_count} modules
+                </div>
+              </button>
+            ))}
+            {userCourses.length > 8 && (
+              <Link
+                to="/my-courses"
+                className="block px-2 py-2 text-xs text-[var(--accent-primary)] hover:underline"
+                onClick={closeMobile}
+              >
+                View all {userCourses.length} courses →
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Mobile drawer — visible on mobile only, hidden on lg+ */}
       <aside

@@ -4,6 +4,7 @@ import LessonRenderer from '../components/LessonRenderer';
 import LessonPDFExporter from '../components/LessonPDFExporter';
 import LessonAudioPlayer from '../components/LessonAudioPlayer';
 import { getCourseById } from '../utils/api';
+import { toggleBookmark, isBookmarked } from '../utils/bookmarks';
 
 const validateCourseData = (course) => {
   if (!course) return false;
@@ -124,13 +125,47 @@ export default function CoursePage() {
   const location = useLocation();
   const navigate = useNavigate();
   const courseFromState = location.state?.course;
+  const initialModule = location.state?.moduleIndex ?? 0;
+  const initialLesson = location.state?.lessonIndex ?? 0;
 
   const [course, setCourse] = useState(courseFromState);
   const [loading, setLoading] = useState(!courseFromState);
   const [error, setError] = useState('');
-  const [selectedModule, setSelectedModule] = useState(0);
-  const [selectedLesson, setSelectedLesson] = useState(0);
+  const [selectedModule, setSelectedModule] = useState(initialModule);
+  const [selectedLesson, setSelectedLesson] = useState(initialLesson);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
+
+  // Check bookmark status on mount / lesson change
+  useEffect(() => {
+    if (!course) return;
+    const mod = course.modules?.[selectedModule];
+    const lesson = mod?.lessons?.[selectedLesson];
+    if (lesson) {
+      const lessonId = lesson.id || lesson.lesson_id || `${courseId}-${selectedModule}-${selectedLesson}`;
+      setBookmarked(isBookmarked(lessonId));
+    }
+  }, [selectedModule, selectedLesson, course, courseId]);
+
+  const handleBookmarkToggle = () => {
+    if (!course) return;
+    const mod = course.modules?.[selectedModule];
+    const lesson = mod?.lessons?.[selectedLesson];
+    if (!lesson) return;
+
+    const lessonId = lesson.id || lesson.lesson_id || `${courseId}-${selectedModule}-${selectedLesson}`;
+    const moduleName = mod.title || `Module ${selectedModule + 1}`;
+    const added = toggleBookmark({
+      id: lessonId,
+      lessonTitle: lesson.title || `Lesson ${selectedLesson + 1}`,
+      courseTitle: course.title,
+      moduleTitle: moduleName,
+      courseId,
+      moduleIndex: selectedModule,
+      lessonIndex: selectedLesson,
+    });
+    setBookmarked(added);
+  };
 
   useEffect(() => {
     if (courseFromState) {
@@ -208,10 +243,10 @@ export default function CoursePage() {
     );
   }
 
-  const currentModule = course.modules?.[selectedModule];
+  const currentModule = course?.modules?.[selectedModule];
   const currentLesson = currentModule?.lessons?.[selectedLesson];
-  const totalLessons = course.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0;
-  const currentLessonNumber = course.modules?.slice(0, selectedModule).reduce((acc, m) => acc + (m.lessons?.length || 0), 0) + selectedLesson + 1 || 1;
+  const totalLessons = course?.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0;
+  const currentLessonNumber = course?.modules?.slice(0, selectedModule).reduce((acc, m) => acc + (m.lessons?.length || 0), 0) + selectedLesson + 1 || 1;
 
   return (
     <div className="min-h-screen pb-20">
@@ -406,6 +441,21 @@ export default function CoursePage() {
 
                   {/* Action buttons */}
                   <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={handleBookmarkToggle}
+                      className={`inline-flex items-center gap-2 font-medium px-4 py-2 border-[var(--border-width)] transition-all ${
+                        bookmarked
+                          ? 'bg-[var(--accent-primary)] text-white border-[var(--border-light)]'
+                          : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border-[var(--border-light)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
+                      }`}
+                      style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.875rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                      aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark this lesson'}
+                    >
+                      <svg className="w-5 h-5" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                      </svg>
+                      {bookmarked ? 'Bookmarked' : 'Bookmark'}
+                    </button>
                     <LessonPDFExporter
                       lesson={currentLesson}
                       courseTitle={course.title}

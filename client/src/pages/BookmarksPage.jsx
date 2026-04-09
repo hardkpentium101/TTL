@@ -117,15 +117,14 @@ export default function BookmarksPage() {
               className="card p-6 hover:shadow-lg transition-shadow duration-200"
             >
               <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <button
-                    onClick={() => handleNavigateToLesson(bookmark)}
-                    className="text-left hover:text-[var(--accent-primary)] transition-colors"
-                  >
-                    <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-                      {bookmark.lessonTitle}
-                    </h3>
-                  </button>
+                <button
+                  onClick={() => handleNavigateToLesson(bookmark)}
+                  className="flex-1 min-w-0 text-left group"
+                  aria-label={`Open lesson: ${bookmark.lessonTitle}`}
+                >
+                  <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2 group-hover:text-[var(--accent-primary)] transition-colors">
+                    {bookmark.lessonTitle}
+                  </h3>
                   <p className="text-sm text-[var(--text-muted)] mb-1">
                     {bookmark.courseTitle}
                   </p>
@@ -136,12 +135,15 @@ export default function BookmarksPage() {
                     Bookmarked {new Date(bookmark.timestamp).toLocaleDateString()} at{' '}
                     {new Date(bookmark.timestamp).toLocaleTimeString()}
                   </p>
-                </div>
+                </button>
 
                 <button
-                  onClick={() => handleRemoveBookmark(bookmark.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveBookmark(bookmark.id);
+                  }}
                   className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--error)] hover:bg-[var(--error-bg)] transition-colors flex-shrink-0"
-                  aria-label="Remove bookmark"
+                  aria-label={`Remove bookmark: ${bookmark.lessonTitle}`}
                   title="Remove bookmark"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

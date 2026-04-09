@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserCourses } from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
+import { toggleBookmark, isBookmarked } from '../utils/bookmarks';
 
 export default function MyCoursesPage() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [bookmarkedCourses, setBookmarkedCourses] = useState({});
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
@@ -136,40 +138,78 @@ export default function MyCoursesPage() {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          {courses.map((course) => (
-            <button
-              key={course.id || course._id}
-              onClick={() => handleCourseClick(course)}
-              className="card p-6 text-left hover:shadow-lg transition-shadow duration-200 group"
-            >
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center flex-shrink-0 shadow-md group-hover:shadow-lg transition-shadow">
-                  <span className="text-white text-lg font-bold">
-                    {(course.title || 'C')[0].toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2 group-hover:text-[var(--accent-primary)] transition-colors truncate">
-                    {course.title}
-                  </h3>
-                  <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
-                    <span className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                      {course.modules_count || course.modules?.length || 0} modules
-                    </span>
-                    {course.created_at && (
-                      <span>
-                        {new Date(course.created_at).toLocaleDateString()}
-                      </span>
-                    )}
-                  </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {courses.map((course) => {
+            const courseId = course.id || course._id;
+            const isBm = bookmarkedCourses[courseId] || false;
+
+            return (
+              <div
+                key={courseId}
+                className="card p-6 hover:shadow-lg transition-shadow duration-200 group"
+              >
+                <div className="flex items-start gap-4">
+                  <button
+                    onClick={() => handleCourseClick(course)}
+                    className="flex-1 min-w-0 text-left"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-[var(--accent-primary)] flex items-center justify-center flex-shrink-0 shadow-md group-hover:shadow-lg transition-shadow">
+                        <span className="text-white text-lg font-bold">
+                          {(course.title || 'C')[0].toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2 group-hover:text-[var(--accent-primary)] transition-colors truncate">
+                          {course.title}
+                        </h3>
+                        <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
+                          <span className="flex items-center gap-1">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                            {course.modules_count || course.modules?.length || 0} modules
+                          </span>
+                          {course.created_at && (
+                            <span>
+                              {new Date(course.created_at).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Bookmark toggle */}
+                  <button
+                    onClick={() => {
+                      const id = courseId;
+                      const added = toggleBookmark({
+                        id,
+                        lessonTitle: course.title,
+                        courseTitle: course.title,
+                        moduleTitle: 'Course',
+                        courseId: id,
+                        moduleIndex: 0,
+                        lessonIndex: 0,
+                      });
+                      setBookmarkedCourses(prev => ({ ...prev, [courseId]: added }));
+                    }}
+                    className={`flex-shrink-0 w-10 h-10 flex items-center justify-center border transition-all ${
+                      isBm
+                        ? 'bg-[var(--accent-primary)] text-white border-[var(--border-light)]'
+                        : 'text-[var(--text-muted)] border-[var(--border-light)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
+                    }`}
+                    aria-label={isBm ? `Remove bookmark from ${course.title}` : `Bookmark ${course.title}`}
+                  >
+                    <svg className="w-5 h-5" fill={isBm ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                    </svg>
+                  </button>
                 </div>
               </div>
-            </button>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

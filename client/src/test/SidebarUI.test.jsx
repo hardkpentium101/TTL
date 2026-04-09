@@ -1,10 +1,18 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { SidebarProvider } from '../context/SidebarContext';
+
+// Clear sidebar state before and after every test
+const resetSidebarState = () => {
+  localStorage.removeItem('text-to-learn-sidebar-collapsed');
+};
+
+beforeEach(resetSidebarState);
+afterEach(resetSidebarState);
 
 vi.mock('@auth0/auth0-react', () => ({
   useAuth0: () => ({
@@ -134,9 +142,14 @@ describe('Sidebar - No Icon Backgrounds', () => {
     expect(navIconSpan?.className).not.toContain('rounded');
   });
 
-  it('should not have gradient background on collapse toggle button', () => {
+  it('should not have gradient background on collapse toggle button', async () => {
+    const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const sidebar = getDesktopSidebar();
+    // Sidebar starts expanded on desktop, so first collapse it
+    const collapseBtn = sidebar?.querySelector('button[aria-label="Collapse sidebar"]');
+    if (collapseBtn) await user.click(collapseBtn);
+
     const toggleBtn = sidebar?.querySelector('button[aria-label="Expand sidebar"]');
     expect(toggleBtn).toBeTruthy();
     expect(toggleBtn?.className).not.toContain('bg-gradient');
@@ -158,19 +171,20 @@ describe('Sidebar - Default Collapsed State', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLocationPathname = '/';
+    localStorage.removeItem('text-to-learn-sidebar-collapsed');
   });
 
-  it('should render sidebar collapsed by default', () => {
+  it('should render sidebar expanded by default on desktop', () => {
     render(<Sidebar />, { wrapper });
     const sidebar = getDesktopSidebar();
-    expect(sidebar?.className).toContain('w-[var(--sidebar-collapsed-width)]');
+    expect(sidebar?.className).toContain('w-[var(--sidebar-width)]');
   });
 
-  it('should show expand toggle button when collapsed', () => {
+  it('should show collapse toggle button when expanded', () => {
     render(<Sidebar />, { wrapper });
     const sidebar = getDesktopSidebar();
-    const expandBtn = sidebar?.querySelector('button[aria-label="Expand sidebar"]');
-    expect(expandBtn).toBeTruthy();
+    const collapseBtn = sidebar?.querySelector('button[aria-label="Collapse sidebar"]');
+    expect(collapseBtn).toBeTruthy();
   });
 
   it('should NOT show app name in sidebar', () => {
@@ -179,8 +193,13 @@ describe('Sidebar - Default Collapsed State', () => {
     expect(sidebar?.textContent).not.toContain('Text-to-Learn');
   });
 
-  it('should hide nav labels when collapsed', () => {
+  it('should hide nav labels when collapsed', async () => {
+    const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
+    const sidebar = getDesktopSidebar();
+    const collapseBtn = sidebar?.querySelector('button[aria-label="Collapse sidebar"]');
+    await user.click(collapseBtn);
+
     const navLinks = getDesktopNavLinks();
     expect(navLinks.length).toBeGreaterThan(0);
     const firstLink = navLinks[0];
@@ -200,8 +219,14 @@ describe('Sidebar - Toggle Expand', () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const sidebar = getDesktopSidebar();
+
+    // Desktop default is expanded, so first collapse it
+    const collapseBtn = sidebar?.querySelector('button[aria-label="Collapse sidebar"]');
+    if (collapseBtn) await user.click(collapseBtn);
+
     expect(sidebar?.className).toContain('w-[var(--sidebar-collapsed-width)]');
 
+    // Now expand
     const expandBtn = sidebar?.querySelector('button[aria-label="Expand sidebar"]');
     await user.click(expandBtn);
 
@@ -212,8 +237,14 @@ describe('Sidebar - Toggle Expand', () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const sidebar = getDesktopSidebar();
-    const expandBtn = sidebar?.querySelector('button[aria-label="Expand sidebar"]');
-    await user.click(expandBtn);
+
+    // Desktop default is expanded, so first collapse it then re-expand
+    const collapseBtn1 = sidebar?.querySelector('button[aria-label="Collapse sidebar"]');
+    if (collapseBtn1) {
+      await user.click(collapseBtn1);
+      const expandBtn = sidebar?.querySelector('button[aria-label="Expand sidebar"]');
+      await user.click(expandBtn);
+    }
 
     const collapseBtn = sidebar?.querySelector('button[aria-label="Collapse sidebar"]');
     expect(collapseBtn).toBeTruthy();
@@ -223,8 +254,10 @@ describe('Sidebar - Toggle Expand', () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const sidebar = getDesktopSidebar();
+
+    // Desktop default is expanded — if collapsed, expand first
     const expandBtn = sidebar?.querySelector('button[aria-label="Expand sidebar"]');
-    await user.click(expandBtn);
+    if (expandBtn) await user.click(expandBtn);
 
     expect(sidebar?.textContent).toContain('Home');
     expect(sidebar?.textContent).toContain('My Courses');
@@ -235,8 +268,10 @@ describe('Sidebar - Toggle Expand', () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const sidebar = getDesktopSidebar();
+
+    // Ensure we start from expanded state
     const expandBtn = sidebar?.querySelector('button[aria-label="Expand sidebar"]');
-    await user.click(expandBtn);
+    if (expandBtn) await user.click(expandBtn);
 
     expect(sidebar?.className).toContain('w-[var(--sidebar-width)]');
 
@@ -251,15 +286,15 @@ describe('Sidebar - Click Outside to Collapse', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLocationPathname = '/';
+    localStorage.removeItem('text-to-learn-sidebar-collapsed');
   });
 
   it('should collapse sidebar when clicking outside', async () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const sidebar = getDesktopSidebar();
-    const expandBtn = sidebar?.querySelector('button[aria-label="Expand sidebar"]');
-    await user.click(expandBtn);
 
+    // Sidebar starts expanded on desktop
     expect(sidebar?.className).toContain('w-[var(--sidebar-width)]');
 
     fireEvent.mouseDown(document.body);
@@ -271,9 +306,8 @@ describe('Sidebar - Click Outside to Collapse', () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const sidebar = getDesktopSidebar();
-    const expandBtn = sidebar?.querySelector('button[aria-label="Expand sidebar"]');
-    await user.click(expandBtn);
 
+    // Sidebar starts expanded on desktop
     expect(sidebar?.className).toContain('w-[var(--sidebar-width)]');
 
     fireEvent.mouseDown(sidebar);
@@ -292,10 +326,15 @@ describe('Sidebar - Expanded State', () => {
     const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
     const sidebar = getDesktopSidebar();
+
+    // Sidebar starts expanded on desktop - collapse first then re-expand to ensure state
+    const collapseBtn1 = sidebar?.querySelector('button[aria-label="Collapse sidebar"]');
+    if (collapseBtn1) await user.click(collapseBtn1);
     const expandBtn = sidebar?.querySelector('button[aria-label="Expand sidebar"]');
-    await user.click(expandBtn);
+    if (expandBtn) await user.click(expandBtn);
 
     const collapseBtn = sidebar?.querySelector('button[aria-label="Collapse sidebar"]');
+    expect(collapseBtn).toBeTruthy();
     expect(collapseBtn?.className).toContain('ml-auto');
   });
 
@@ -304,16 +343,16 @@ describe('Sidebar - Expanded State', () => {
     render(<Sidebar />, { wrapper });
     const sidebar = getDesktopSidebar();
 
+    // Expanded state (default on desktop)
+    const collapseBtn = sidebar?.querySelector('button[aria-label="Collapse sidebar"]');
+    expect(collapseBtn).toHaveAttribute('aria-expanded', 'true');
+
+    // Collapse
+    await user.click(collapseBtn);
+
     // Collapsed state
     const expandBtn = sidebar?.querySelector('button[aria-label="Expand sidebar"]');
     expect(expandBtn).toHaveAttribute('aria-expanded', 'false');
-
-    // Expand
-    await user.click(expandBtn);
-
-    // Expanded state
-    const collapseBtn = sidebar?.querySelector('button[aria-label="Collapse sidebar"]');
-    expect(collapseBtn).toHaveAttribute('aria-expanded', 'true');
   });
 });
 
@@ -348,15 +387,27 @@ describe('Sidebar - Collapsed Navigation', () => {
     mockLocationPathname = '/';
   });
 
-  it('should show tooltips for nav items when collapsed', () => {
+  it('should show tooltips for nav items when collapsed', async () => {
+    const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
-    const homeLink = getDesktopSidebar()?.querySelector('nav a[href="/"]');
+    const sidebar = getDesktopSidebar();
+    // Collapse first
+    const collapseBtn = sidebar?.querySelector('button[aria-label="Collapse sidebar"]');
+    if (collapseBtn) await user.click(collapseBtn);
+
+    const homeLink = sidebar?.querySelector('nav a[href="/"]');
     expect(homeLink).toHaveAttribute('title', 'Home');
   });
 
-  it('should hide nav labels with opacity-0 and w-0 when collapsed', () => {
+  it('should hide nav labels with opacity-0 and w-0 when collapsed', async () => {
+    const user = userEvent.setup();
     render(<Sidebar />, { wrapper });
-    const activeLink = getDesktopSidebar()?.querySelector('nav a[href="/"]');
+    const sidebar = getDesktopSidebar();
+    // Collapse first
+    const collapseBtn = sidebar?.querySelector('button[aria-label="Collapse sidebar"]');
+    if (collapseBtn) await user.click(collapseBtn);
+
+    const activeLink = sidebar?.querySelector('nav a[href="/"]');
     const labelSpan = activeLink?.querySelector('span:last-child');
     expect(labelSpan?.className).toContain('opacity-0');
     expect(labelSpan?.className).toContain('w-0');
