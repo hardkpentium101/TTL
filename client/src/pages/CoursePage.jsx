@@ -127,12 +127,14 @@ export default function CoursePage() {
   const location = useLocation();
   const navigate = useNavigate();
   const courseFromState = location.state?.course;
+  const initialModule = location.state?.moduleIndex ?? 0;
+  const initialLesson = location.state?.lessonIndex ?? 0;
 
   const [course, setCourse] = useState(courseFromState);
   const [loading, setLoading] = useState(!courseFromState);
   const [error, setError] = useState('');
-  const [selectedModule, setSelectedModule] = useState(0);
-  const [selectedLesson, setSelectedLesson] = useState(0);
+  const [selectedModule, setSelectedModule] = useState(initialModule);
+  const [selectedLesson, setSelectedLesson] = useState(initialLesson);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
 
