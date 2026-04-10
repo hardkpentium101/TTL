@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import LessonRenderer from '../components/LessonRenderer';
-import LessonPDFExporter from '../components/LessonPDFExporter';
-import LessonAudioPlayer from '../components/LessonAudioPlayer';
 import { getCourseById } from '../utils/api';
+
+// Lazy-load heavy components
+const LessonPDFExporter = lazy(() => import('../components/LessonPDFExporter'));
+const LessonAudioPlayer = lazy(() => import('../components/LessonAudioPlayer'));
 
 const validateCourseData = (course) => {
   if (!course) return false;
@@ -170,6 +172,38 @@ export default function CoursePage() {
     }
   }, [courseId, courseFromState]);
 
+  const currentModule = useMemo(() => course.modules?.[selectedModule], [course.modules, selectedModule]);
+  const currentLesson = useMemo(() => currentModule?.lessons?.[selectedLesson], [currentModule, selectedLesson]);
+  const totalLessons = useMemo(
+    () => course.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0,
+    [course.modules]
+  );
+  const currentLessonNumber = useMemo(
+    () => course.modules?.slice(0, selectedModule).reduce((acc, m) => acc + (m.lessons?.length || 0), 0) + selectedLesson + 1 || 1,
+    [course.modules, selectedModule, selectedLesson]
+  );
+
+  const handleNextLesson = useCallback(() => {
+    const nextLessonIndex = selectedLesson + 1;
+    if (nextLessonIndex < (currentModule?.lessons?.length || 0)) {
+      setSelectedLesson(nextLessonIndex);
+    } else if (selectedModule < (course.modules?.length || 0) - 1) {
+      setSelectedModule(selectedModule + 1);
+      setSelectedLesson(0);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [selectedLesson, selectedModule, currentModule?.lessons?.length, course.modules?.length]);
+
+  const handlePrevLesson = useCallback(() => {
+    if (selectedLesson > 0) {
+      setSelectedLesson(selectedLesson - 1);
+    } else if (selectedModule > 0) {
+      setSelectedModule(selectedModule - 1);
+      setSelectedLesson((course.modules?.[selectedModule - 1]?.lessons?.length || 1) - 1);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [selectedLesson, selectedModule, course.modules]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -207,11 +241,6 @@ export default function CoursePage() {
       </div>
     );
   }
-
-  const currentModule = course.modules?.[selectedModule];
-  const currentLesson = currentModule?.lessons?.[selectedLesson];
-  const totalLessons = course.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0;
-  const currentLessonNumber = course.modules?.slice(0, selectedModule).reduce((acc, m) => acc + (m.lessons?.length || 0), 0) + selectedLesson + 1 || 1;
 
   return (
     <div className="min-h-screen pb-20">
@@ -406,22 +435,17 @@ export default function CoursePage() {
 
                   {/* Action buttons */}
                   <div className="flex flex-wrap gap-3">
-                    <LessonPDFExporter
-                      lesson={currentLesson}
-                      courseTitle={course.title}
-                      moduleName={currentModule.title}
-                    />
+                    <Suspense fallback={
+                      <div className="h-10 w-32 rounded-lg bg-[var(--bg-tertiary)] animate-pulse" />
+                    }>
+                      <LessonPDFExporter
+                        lesson={currentLesson}
+                        courseTitle={course.title}
+                        moduleName={currentModule.title}
+                      />
+                    </Suspense>
                     <button
-                      onClick={() => {
-                        const nextLessonIndex = selectedLesson + 1;
-                        if (nextLessonIndex < (currentModule.lessons?.length || 0)) {
-                          setSelectedLesson(nextLessonIndex);
-                        } else if (selectedModule < (course.modules?.length || 0) - 1) {
-                          setSelectedModule(selectedModule + 1);
-                          setSelectedLesson(0);
-                        }
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
+                      onClick={handleNextLesson}
                       className="btn btn-secondary text-sm"
                     >
                       Next Lesson
@@ -480,7 +504,11 @@ export default function CoursePage() {
 
                 {/* Audio Player */}
                 <div className="card p-6 mb-6">
-                  <LessonAudioPlayer lesson={currentLesson} />
+                  <Suspense fallback={
+                    <div className="h-24 rounded-lg bg-[var(--bg-tertiary)] animate-pulse" />
+                  }>
+                    <LessonAudioPlayer lesson={currentLesson} />
+                  </Suspense>
                 </div>
 
                 {/* Resources */}
@@ -523,15 +551,7 @@ export default function CoursePage() {
                 <div className="mt-8 pt-6 border-t border-[var(--border-light)]">
                   <div className="flex justify-between items-center">
                     <button
-                      onClick={() => {
-                        if (selectedLesson > 0) {
-                          setSelectedLesson(selectedLesson - 1);
-                        } else if (selectedModule > 0) {
-                          setSelectedModule(selectedModule - 1);
-                          setSelectedLesson((course.modules?.[selectedModule - 1]?.lessons?.length || 1) - 1);
-                        }
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
+                      onClick={handlePrevLesson}
                       disabled={selectedModule === 0 && selectedLesson === 0}
                       className="btn btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -540,22 +560,13 @@ export default function CoursePage() {
                       </svg>
                       Previous
                     </button>
-                    
+
                     <span className="text-sm text-[var(--text-muted)]">
                       {currentLessonNumber} / {totalLessons}
                     </span>
-                    
+
                     <button
-                      onClick={() => {
-                        const nextLessonIndex = selectedLesson + 1;
-                        if (nextLessonIndex < (currentModule.lessons?.length || 0)) {
-                          setSelectedLesson(nextLessonIndex);
-                        } else if (selectedModule < (course.modules?.length || 0) - 1) {
-                          setSelectedModule(selectedModule + 1);
-                          setSelectedLesson(0);
-                        }
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }}
+                      onClick={handleNextLesson}
                       disabled={selectedModule === (course.modules?.length || 0) - 1 && selectedLesson === (currentModule.lessons?.length || 0) - 1}
                       className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                     >

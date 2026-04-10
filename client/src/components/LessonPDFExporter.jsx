@@ -1,8 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useRef, memo } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
-export default function LessonPDFExporter({ lesson, courseTitle, moduleName }) {
+const LessonPDFExporter = memo(function LessonPDFExporter({ lesson, courseTitle, moduleName }) {
   const printRef = useRef(null);
 
   const handleDownloadPDF = async () => {
@@ -340,4 +340,6 @@ export default function LessonPDFExporter({ lesson, courseTitle, moduleName }) {
       </div>
     </>
   );
-}
+});
+
+export default LessonPDFExporter;

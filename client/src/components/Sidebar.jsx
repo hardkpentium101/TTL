@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getUserCourses } from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
@@ -44,7 +44,7 @@ const NAV_ITEMS = [
   },
 ];
 
-export default function Sidebar() {
+const Sidebar = memo(function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isHoveringAppArea, setIsHoveringAppArea] = useState(false);
   const [userCourses, setUserCourses] = useState([]);
@@ -92,7 +92,7 @@ export default function Sidebar() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = useCallback((path) => location.pathname === path, [location.pathname]);
 
   const handleCourseClick = async (course, e) => {
     e.stopPropagation();
@@ -370,4 +370,6 @@ export default function Sidebar() {
       </aside>
     </>
   );
-}
+});
+
+export default Sidebar;

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { api } from '../../utils/api';
 
-export default function VideoBlock({ query }) {
+const VideoBlock = memo(function VideoBlock({ query }) {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedVideoIndex, setSelectedVideoIndex] = useState(0);
@@ -185,4 +185,6 @@ export default function VideoBlock({ query }) {
       </div>
     </div>
   );
-}
+});
+
+export default VideoBlock;
