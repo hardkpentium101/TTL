@@ -672,21 +672,22 @@ async def synthesize_speech(request: dict):
         }
 
     except ImportError as e:
+        logger.exception("[TTS] GenAI package import error")
         return {
             "text": text,
             "language": language,
             "useBrowserTTS": True,
             "isMock": True,
-            "fallbackReason": f"GenAI package not available: {str(e)}",
+            "fallbackReason": "Text-to-speech service is temporarily unavailable - using browser SpeechSynthesis",
         }
     except Exception as e:
-        print(f"[TTS] Unexpected error: {str(e)}")
+        logger.exception("[TTS] Unexpected error during speech synthesis")
         return {
             "text": text,
             "language": language,
             "useBrowserTTS": True,
             "isMock": True,
-            "fallbackReason": f"Gemini TTS error: {str(e)}",
+            "fallbackReason": "Text-to-speech service error - using browser SpeechSynthesis",
         }
 
 
