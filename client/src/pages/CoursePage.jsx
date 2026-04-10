@@ -176,15 +176,15 @@ export default function CoursePage() {
     }
   }, [courseId, courseFromState]);
 
-  const currentModule = useMemo(() => course.modules?.[selectedModule], [course.modules, selectedModule]);
+  const currentModule = useMemo(() => course?.modules?.[selectedModule], [course?.modules, selectedModule]);
   const currentLesson = useMemo(() => currentModule?.lessons?.[selectedLesson], [currentModule, selectedLesson]);
   const totalLessons = useMemo(
-    () => course.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0,
-    [course.modules]
+    () => course?.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0,
+    [course?.modules]
   );
   const currentLessonNumber = useMemo(
-    () => course.modules?.slice(0, selectedModule).reduce((acc, m) => acc + (m.lessons?.length || 0), 0) + selectedLesson + 1 || 1,
-    [course.modules, selectedModule, selectedLesson]
+    () => course?.modules?.slice(0, selectedModule).reduce((acc, m) => acc + (m.lessons?.length || 0), 0) + selectedLesson + 1 || 1,
+    [course?.modules, selectedModule, selectedLesson]
   );
 
   const handleNextLesson = useCallback(() => {
@@ -196,19 +196,19 @@ export default function CoursePage() {
       setSelectedLesson(0);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [selectedLesson, selectedModule, currentModule?.lessons?.length, course.modules?.length]);
+  }, [selectedLesson, selectedModule, currentModule?.lessons?.length, course?.modules?.length]);
 
   const handlePrevLesson = useCallback(() => {
     if (selectedLesson > 0) {
       setSelectedLesson(selectedLesson - 1);
     } else if (selectedModule > 0) {
       setSelectedModule(selectedModule - 1);
-      setSelectedLesson((course.modules?.[selectedModule - 1]?.lessons?.length || 1) - 1);
+      setSelectedLesson((course?.modules?.[selectedModule - 1]?.lessons?.length || 1) - 1);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [selectedLesson, selectedModule, course.modules]);
+  }, [selectedLesson, selectedModule, course?.modules]);
 
-  const courseDbId = course.id || course._id;
+  const courseDbId = course?.id || course?._id;
 
   // Update bookmark status when lesson changes
   useEffect(() => {
