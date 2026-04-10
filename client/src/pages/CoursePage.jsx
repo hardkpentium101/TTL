@@ -10,7 +10,7 @@ const LessonAudioPlayer = lazy(() => import('../components/LessonAudioPlayer'));
 
 const validateCourseData = (course) => {
   if (!course) return false;
-  if (!course.modules || !Array.isArray(course.modules)) return false;
+  if (!course?.modules || !Array.isArray(course.modules)) return false;
   if (course.modules.length === 0) return false;
 
   for (const module of course.modules) {
@@ -127,12 +127,14 @@ export default function CoursePage() {
   const location = useLocation();
   const navigate = useNavigate();
   const courseFromState = location.state?.course;
+  const initialModule = location.state?.moduleIndex ?? 0;
+  const initialLesson = location.state?.lessonIndex ?? 0;
 
   const [course, setCourse] = useState(courseFromState);
   const [loading, setLoading] = useState(!courseFromState);
   const [error, setError] = useState('');
-  const [selectedModule, setSelectedModule] = useState(0);
-  const [selectedLesson, setSelectedLesson] = useState(0);
+  const [selectedModule, setSelectedModule] = useState(initialModule);
+  const [selectedLesson, setSelectedLesson] = useState(initialLesson);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
 
@@ -174,15 +176,15 @@ export default function CoursePage() {
     }
   }, [courseId, courseFromState]);
 
-  const currentModule = useMemo(() => course.modules?.[selectedModule], [course.modules, selectedModule]);
+  const currentModule = useMemo(() => course?.modules?.[selectedModule], [course?.modules, selectedModule]);
   const currentLesson = useMemo(() => currentModule?.lessons?.[selectedLesson], [currentModule, selectedLesson]);
   const totalLessons = useMemo(
-    () => course.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0,
-    [course.modules]
+    () => course?.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0,
+    [course?.modules]
   );
   const currentLessonNumber = useMemo(
-    () => course.modules?.slice(0, selectedModule).reduce((acc, m) => acc + (m.lessons?.length || 0), 0) + selectedLesson + 1 || 1,
-    [course.modules, selectedModule, selectedLesson]
+    () => course?.modules?.slice(0, selectedModule).reduce((acc, m) => acc + (m.lessons?.length || 0), 0) + selectedLesson + 1 || 1,
+    [course?.modules, selectedModule, selectedLesson]
   );
 
   const handleNextLesson = useCallback(() => {
@@ -194,19 +196,19 @@ export default function CoursePage() {
       setSelectedLesson(0);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [selectedLesson, selectedModule, currentModule?.lessons?.length, course.modules?.length]);
+  }, [selectedLesson, selectedModule, currentModule?.lessons?.length, course?.modules?.length]);
 
   const handlePrevLesson = useCallback(() => {
     if (selectedLesson > 0) {
       setSelectedLesson(selectedLesson - 1);
     } else if (selectedModule > 0) {
       setSelectedModule(selectedModule - 1);
-      setSelectedLesson((course.modules?.[selectedModule - 1]?.lessons?.length || 1) - 1);
+      setSelectedLesson((course?.modules?.[selectedModule - 1]?.lessons?.length || 1) - 1);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [selectedLesson, selectedModule, course.modules]);
+  }, [selectedLesson, selectedModule, course?.modules]);
 
-  const courseDbId = course.id || course._id;
+  const courseDbId = course?.id || course?._id;
 
   // Update bookmark status when lesson changes
   useEffect(() => {
@@ -223,7 +225,7 @@ export default function CoursePage() {
     const bookmarkData = {
       id: lessonId,
       lessonTitle: currentLesson.title,
-      courseTitle: course.title,
+      courseTitle: course?.title || '',
       moduleTitle: currentModule?.title || '',
       courseId: courseDbId,
       moduleIndex: selectedModule,
@@ -232,7 +234,7 @@ export default function CoursePage() {
 
     const added = toggleBookmark(bookmarkData);
     setBookmarked(added);
-  }, [currentLesson, courseDbId, currentModule, course.title, selectedModule, selectedLesson]);
+  }, [currentLesson, courseDbId, currentModule, course?.title, selectedModule, selectedLesson]);
 
   if (loading) {
     return (
