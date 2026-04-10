@@ -10,7 +10,7 @@ const LessonAudioPlayer = lazy(() => import('../components/LessonAudioPlayer'));
 
 const validateCourseData = (course) => {
   if (!course) return false;
-  if (!course.modules || !Array.isArray(course.modules)) return false;
+  if (!course?.modules || !Array.isArray(course.modules)) return false;
   if (course.modules.length === 0) return false;
 
   for (const module of course.modules) {
@@ -225,7 +225,7 @@ export default function CoursePage() {
     const bookmarkData = {
       id: lessonId,
       lessonTitle: currentLesson.title,
-      courseTitle: course.title,
+      courseTitle: course?.title || '',
       moduleTitle: currentModule?.title || '',
       courseId: courseDbId,
       moduleIndex: selectedModule,
@@ -234,7 +234,7 @@ export default function CoursePage() {
 
     const added = toggleBookmark(bookmarkData);
     setBookmarked(added);
-  }, [currentLesson, courseDbId, currentModule, course.title, selectedModule, selectedLesson]);
+  }, [currentLesson, courseDbId, currentModule, course?.title, selectedModule, selectedLesson]);
 
   if (loading) {
     return (
