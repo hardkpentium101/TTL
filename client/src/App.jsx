@@ -6,6 +6,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Sidebar from './components/Sidebar';
 import CoursePage from './pages/CoursePage';
 import ProtectedRoute from './components/ProtectedRoute';
+import { refreshCoursesEvent } from './events';
 
 // Lazy-loaded page components
 const Home = lazy(() => import('./pages/Home'));
@@ -30,6 +31,8 @@ function AuthSync() {
   useEffect(() => {
     if (isAuthenticated) {
       syncUser();
+      // Refetch courses when auth state is established (handles page refresh and token refresh)
+      refreshCoursesEvent.dispatchEvent(new Event('refresh'));
     }
   }, [isAuthenticated, syncUser]);
 

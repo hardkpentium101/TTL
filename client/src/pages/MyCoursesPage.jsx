@@ -2,11 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserCourses } from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
+import { refreshCoursesEvent } from '../events';
 
 const MyCoursesPage = function MyCoursesPage() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
@@ -21,6 +23,7 @@ const MyCoursesPage = function MyCoursesPage() {
         setLoading(true);
         const data = await getUserCourses();
         setCourses(data.courses || []);
+        setError('');
       } catch (err) {
         console.error('Failed to fetch courses:', err);
         setError(err.message || 'Failed to load courses');
@@ -30,7 +33,16 @@ const MyCoursesPage = function MyCoursesPage() {
     };
 
     fetchCourses();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, refreshTrigger]);
+
+  // Listen for course refresh events (e.g., after token refresh or new course generation)
+  useEffect(() => {
+    const handleRefresh = () => {
+      setRefreshTrigger(prev => prev + 1);
+    };
+    refreshCoursesEvent.addEventListener('refresh', handleRefresh);
+    return () => refreshCoursesEvent.removeEventListener('refresh', handleRefresh);
+  }, []);
 
   const handleCourseClick = useCallback(async (course) => {
     const courseId = course.id || course._id;
