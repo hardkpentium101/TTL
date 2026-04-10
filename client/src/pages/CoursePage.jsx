@@ -206,31 +206,33 @@ export default function CoursePage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [selectedLesson, selectedModule, course.modules]);
 
+  const courseDbId = course.id || course._id;
+
   // Update bookmark status when lesson changes
   useEffect(() => {
-    if (currentLesson && course._id) {
-      const lessonId = `${course._id}-${selectedModule}-${selectedLesson}`;
+    if (currentLesson && courseDbId) {
+      const lessonId = `${courseDbId}-${selectedModule}-${selectedLesson}`;
       setBookmarked(isBookmarked(lessonId));
     }
-  }, [currentLesson, course._id, selectedModule, selectedLesson]);
+  }, [currentLesson, courseDbId, selectedModule, selectedLesson]);
 
   const handleToggleBookmark = useCallback(() => {
-    if (!currentLesson || !course._id) return;
+    if (!currentLesson || !courseDbId) return;
 
-    const lessonId = `${course._id}-${selectedModule}-${selectedLesson}`;
+    const lessonId = `${courseDbId}-${selectedModule}-${selectedLesson}`;
     const bookmarkData = {
       id: lessonId,
       lessonTitle: currentLesson.title,
       courseTitle: course.title,
       moduleTitle: currentModule?.title || '',
-      courseId: course._id,
+      courseId: courseDbId,
       moduleIndex: selectedModule,
       lessonIndex: selectedLesson,
     };
 
     const added = toggleBookmark(bookmarkData);
     setBookmarked(added);
-  }, [currentLesson, course._id, currentModule, course.title, selectedModule, selectedLesson]);
+  }, [currentLesson, courseDbId, currentModule, course.title, selectedModule, selectedLesson]);
 
   if (loading) {
     return (
