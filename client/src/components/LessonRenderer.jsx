@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import HeadingBlock from './blocks/HeadingBlock';
 import ParagraphBlock from './blocks/ParagraphBlock';
 import CodeBlock from './blocks/CodeBlock';
@@ -17,7 +17,7 @@ const blockComponents = {
   link: LinkBlock,
 };
 
-export default function LessonRenderer({ content }) {
+const LessonRenderer = memo(function LessonRenderer({ content }) {
   if (!content || !Array.isArray(content)) {
     return <p className="text-gray-500">No content available</p>;
   }
@@ -36,4 +36,6 @@ export default function LessonRenderer({ content }) {
       })}
     </div>
   );
-}
+});
+
+export default LessonRenderer;

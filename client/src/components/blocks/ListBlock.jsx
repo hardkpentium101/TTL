@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { memo } from 'react';
 
-export default function ListBlock({ items }) {
+const ListBlock = memo(function ListBlock({ items }) {
   return (
     <ul className="my-6 space-y-3">
       {items.map((item, index) => (
@@ -18,4 +18,6 @@ export default function ListBlock({ items }) {
       ))}
     </ul>
   );
-}
+});
+
+export default ListBlock;

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 
-export default function MCQBlock({ question, options, answer, explanation }) {
+const MCQBlock = memo(function MCQBlock({ question, options, answer, explanation }) {
   const [selected, setSelected] = useState(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [animateResult, setAnimateResult] = useState(false);
@@ -134,4 +134,6 @@ export default function MCQBlock({ question, options, answer, explanation }) {
       </div>
     </div>
   );
-}
+});
+
+export default MCQBlock;

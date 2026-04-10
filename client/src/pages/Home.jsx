@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { generateCourseAsync, getCourseStatus, getCourseResult } from '../utils/api';
 import { refreshCoursesEvent } from '../events';
@@ -40,7 +40,7 @@ function loadGenerationState() {
   }
 }
 
-export default function Home() {
+const Home = memo(function Home() {
   const [topic, setTopic] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -400,4 +400,6 @@ export default function Home() {
       <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[var(--border-light)] to-transparent" />
     </div>
   );
-}
+});
+
+export default Home;

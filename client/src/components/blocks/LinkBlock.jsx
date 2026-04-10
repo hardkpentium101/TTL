@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { memo } from 'react';
 
-export default function LinkBlock({ text, url }) {
+const LinkBlock = memo(function LinkBlock({ text, url }) {
   return (
     <div className="my-4">
       <a
@@ -19,4 +19,6 @@ export default function LinkBlock({ text, url }) {
       </a>
     </div>
   );
-}
+});
+
+export default LinkBlock;

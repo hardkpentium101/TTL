@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBookmarks, removeBookmark } from '../utils/bookmarks';
 
-export default function BookmarksPage() {
+const BookmarksPage = function BookmarksPage() {
   const [bookmarks, setBookmarks] = useState([]);
   const navigate = useNavigate();
 
@@ -19,19 +19,19 @@ export default function BookmarksPage() {
     return () => window.removeEventListener('storage', loadBookmarks);
   }, []);
 
-  const handleRemoveBookmark = (id) => {
+  const handleRemoveBookmark = useCallback((id) => {
     removeBookmark(id);
-    setBookmarks(bookmarks.filter(b => b.id !== id));
-  };
+    setBookmarks(prev => prev.filter(b => b.id !== id));
+  }, []);
 
-  const handleNavigateToLesson = (bookmark) => {
+  const handleNavigateToLesson = useCallback((bookmark) => {
     navigate(`/course/${bookmark.courseId}`, {
       state: {
         moduleIndex: bookmark.moduleIndex,
         lessonIndex: bookmark.lessonIndex,
       },
     });
-  };
+  }, [navigate]);
 
   if (bookmarks.length === 0) {
     return (
@@ -108,4 +108,6 @@ export default function BookmarksPage() {
       </div>
     </div>
   );
-}
+};
+
+export default BookmarksPage;

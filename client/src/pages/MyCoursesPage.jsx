@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserCourses } from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 
-export default function MyCoursesPage() {
+const MyCoursesPage = function MyCoursesPage() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -32,7 +32,7 @@ export default function MyCoursesPage() {
     fetchCourses();
   }, [isAuthenticated]);
 
-  const handleCourseClick = async (course) => {
+  const handleCourseClick = useCallback(async (course) => {
     const courseId = course.id || course._id;
 
     if (courseId) {
@@ -48,7 +48,7 @@ export default function MyCoursesPage() {
         }
       }
     }
-  };
+  }, [navigate]);
 
   if (loading) {
     return (
@@ -160,4 +160,6 @@ export default function MyCoursesPage() {
       </div>
     </div>
   );
-}
+};
+
+export default MyCoursesPage;

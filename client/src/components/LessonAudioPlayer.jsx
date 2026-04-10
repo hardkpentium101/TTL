@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, memo, useMemo } from 'react';
 import { api } from '../utils/api';
 
-export default function LessonAudioPlayer({ lesson }) {
+const LessonAudioPlayer = memo(function LessonAudioPlayer({ lesson }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [language, setLanguage] = useState('en-US'); // Default to English
@@ -10,20 +10,20 @@ export default function LessonAudioPlayer({ lesson }) {
   const [usingGeminiTTS, setUsingGeminiTTS] = useState(false);
   const audioRef = useRef(null);
 
-  // Extract lesson text content for TTS
-  const getLessonText = () => {
+  // Extract lesson text content for TTS (memoized to avoid recomputing)
+  const lessonText = useMemo(() => {
     if (!lesson?.content) return '';
-    
+
     const textBlocks = lesson.content
       .filter(block => block.type === 'paragraph' || block.type === 'heading')
       .map(block => block.text)
       .join('. ');
-    
+
     return textBlocks.substring(0, 500); // Limit to 500 chars for demo
-  };
+  }, [lesson?.content]);
 
   const synthesizeSpeech = async (lang) => {
-    const text = getLessonText();
+    const text = lessonText;
     if (!text) {
       setError('No text content available for audio');
       return;
@@ -359,7 +359,7 @@ export default function LessonAudioPlayer({ lesson }) {
 
       {/* Info text */}
       <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-        📖 Reading: {getLessonText().length} characters •
+        📖 Reading: {lessonText.length} characters •
         {usingGeminiTTS ? (
           <span className="text-green-600 dark:text-green-400">🎙️ Using Gemini 2.5 Flash TTS</span>
         ) : (
@@ -368,4 +368,6 @@ export default function LessonAudioPlayer({ lesson }) {
       </p>
     </div>
   );
-}
+});
+
+export default LessonAudioPlayer;

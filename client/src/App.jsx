@@ -1,14 +1,28 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import Auth0ProviderWithNavigate from './context/Auth0Provider';
 import ErrorBoundary from './components/ErrorBoundary';
 import Sidebar from './components/Sidebar';
-import Home from './pages/Home';
 import CoursePage from './pages/CoursePage';
 import ProtectedRoute from './components/ProtectedRoute';
-import BookmarksPage from './pages/BookmarksPage';
-import MyCoursesPage from './pages/MyCoursesPage';
+
+// Lazy-loaded page components
+const Home = lazy(() => import('./pages/Home'));
+const BookmarksPage = lazy(() => import('./pages/BookmarksPage'));
+const MyCoursesPage = lazy(() => import('./pages/MyCoursesPage'));
+
+// Loading fallback component for Suspense
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="text-center">
+        <div className="w-12 h-12 mx-auto mb-4 rounded-full border-4 border-[var(--border-light)] border-t-[var(--accent-primary)] animate-spin" />
+        <p className="text-sm text-[var(--text-muted)]">Loading...</p>
+      </div>
+    </div>
+  );
+}
 
 function AuthSync() {
   const { isAuthenticated, syncUser } = useAuth();
@@ -73,18 +87,26 @@ function App() {
           <AuthSync />
           <Routes>
             <Route path="/" element={<AppLayout />}>
-              <Route index element={<Home />} />
-              
+              <Route index element={
+                <Suspense fallback={<PageLoader />}>
+                  <Home />
+                </Suspense>
+              } />
+
               <Route path="my-courses" element={
-                <ProtectedRoute>
-                  <MyCoursesPage />
-                </ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                  <ProtectedRoute>
+                    <MyCoursesPage />
+                  </ProtectedRoute>
+                </Suspense>
               } />
 
               <Route path="bookmarks" element={
-                <ProtectedRoute>
-                  <BookmarksPage />
-                </ProtectedRoute>
+                <Suspense fallback={<PageLoader />}>
+                  <ProtectedRoute>
+                    <BookmarksPage />
+                  </ProtectedRoute>
+                </Suspense>
               } />
 
               <Route path="settings" element={
