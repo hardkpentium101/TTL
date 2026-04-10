@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import LessonRenderer from '../components/LessonRenderer';
 import { getCourseById } from '../utils/api';
+import { toggleBookmark, isBookmarked } from '../utils/bookmarks';
 
 // Lazy-load heavy components
 const LessonPDFExporter = lazy(() => import('../components/LessonPDFExporter'));
@@ -133,6 +134,7 @@ export default function CoursePage() {
   const [selectedModule, setSelectedModule] = useState(0);
   const [selectedLesson, setSelectedLesson] = useState(0);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
 
   useEffect(() => {
     if (courseFromState) {
@@ -203,6 +205,32 @@ export default function CoursePage() {
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [selectedLesson, selectedModule, course.modules]);
+
+  // Update bookmark status when lesson changes
+  useEffect(() => {
+    if (currentLesson && course._id) {
+      const lessonId = `${course._id}-${selectedModule}-${selectedLesson}`;
+      setBookmarked(isBookmarked(lessonId));
+    }
+  }, [currentLesson, course._id, selectedModule, selectedLesson]);
+
+  const handleToggleBookmark = useCallback(() => {
+    if (!currentLesson || !course._id) return;
+
+    const lessonId = `${course._id}-${selectedModule}-${selectedLesson}`;
+    const bookmarkData = {
+      id: lessonId,
+      lessonTitle: currentLesson.title,
+      courseTitle: course.title,
+      moduleTitle: currentModule?.title || '',
+      courseId: course._id,
+      moduleIndex: selectedModule,
+      lessonIndex: selectedLesson,
+    };
+
+    const added = toggleBookmark(bookmarkData);
+    setBookmarked(added);
+  }, [currentLesson, course._id, currentModule, course.title, selectedModule, selectedLesson]);
 
   if (loading) {
     return (
@@ -435,6 +463,23 @@ export default function CoursePage() {
 
                   {/* Action buttons */}
                   <div className="flex flex-wrap gap-3">
+                    {/* Bookmark Toggle */}
+                    <button
+                      onClick={handleToggleBookmark}
+                      className={`inline-flex items-center gap-2 font-medium px-4 py-2 rounded-lg transition-all shadow-md hover:shadow-lg border ${
+                        bookmarked
+                          ? 'bg-[var(--accent-secondary)]/10 border-[var(--accent-secondary)]/30 text-[var(--accent-secondary)] hover:bg-[var(--accent-secondary)]/20'
+                          : 'bg-[var(--bg-card)] border-[var(--border-light)] text-[var(--text-secondary)] hover:border-[var(--accent-secondary)] hover:text-[var(--accent-secondary)]'
+                      }`}
+                      aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark this lesson'}
+                      title={bookmarked ? 'Remove bookmark' : 'Bookmark this lesson'}
+                    >
+                      <svg className="w-5 h-5" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                      </svg>
+                      {bookmarked ? 'Bookmarked' : 'Bookmark'}
+                    </button>
+
                     <Suspense fallback={
                       <div className="h-10 w-32 rounded-lg bg-[var(--bg-tertiary)] animate-pulse" />
                     }>
