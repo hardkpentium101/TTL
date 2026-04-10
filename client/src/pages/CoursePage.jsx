@@ -172,6 +172,38 @@ export default function CoursePage() {
     }
   }, [courseId, courseFromState]);
 
+  const currentModule = useMemo(() => course.modules?.[selectedModule], [course.modules, selectedModule]);
+  const currentLesson = useMemo(() => currentModule?.lessons?.[selectedLesson], [currentModule, selectedLesson]);
+  const totalLessons = useMemo(
+    () => course.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0,
+    [course.modules]
+  );
+  const currentLessonNumber = useMemo(
+    () => course.modules?.slice(0, selectedModule).reduce((acc, m) => acc + (m.lessons?.length || 0), 0) + selectedLesson + 1 || 1,
+    [course.modules, selectedModule, selectedLesson]
+  );
+
+  const handleNextLesson = useCallback(() => {
+    const nextLessonIndex = selectedLesson + 1;
+    if (nextLessonIndex < (currentModule?.lessons?.length || 0)) {
+      setSelectedLesson(nextLessonIndex);
+    } else if (selectedModule < (course.modules?.length || 0) - 1) {
+      setSelectedModule(selectedModule + 1);
+      setSelectedLesson(0);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [selectedLesson, selectedModule, currentModule?.lessons?.length, course.modules?.length]);
+
+  const handlePrevLesson = useCallback(() => {
+    if (selectedLesson > 0) {
+      setSelectedLesson(selectedLesson - 1);
+    } else if (selectedModule > 0) {
+      setSelectedModule(selectedModule - 1);
+      setSelectedLesson((course.modules?.[selectedModule - 1]?.lessons?.length || 1) - 1);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [selectedLesson, selectedModule, course.modules]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -209,38 +241,6 @@ export default function CoursePage() {
       </div>
     );
   }
-
-  const currentModule = useMemo(() => course.modules?.[selectedModule], [course.modules, selectedModule]);
-  const currentLesson = useMemo(() => currentModule?.lessons?.[selectedLesson], [currentModule, selectedLesson]);
-  const totalLessons = useMemo(
-    () => course.modules?.reduce((acc, m) => acc + (m.lessons?.length || 0), 0) || 0,
-    [course.modules]
-  );
-  const currentLessonNumber = useMemo(
-    () => course.modules?.slice(0, selectedModule).reduce((acc, m) => acc + (m.lessons?.length || 0), 0) + selectedLesson + 1 || 1,
-    [course.modules, selectedModule, selectedLesson]
-  );
-
-  const handleNextLesson = useCallback(() => {
-    const nextLessonIndex = selectedLesson + 1;
-    if (nextLessonIndex < (currentModule?.lessons?.length || 0)) {
-      setSelectedLesson(nextLessonIndex);
-    } else if (selectedModule < (course.modules?.length || 0) - 1) {
-      setSelectedModule(selectedModule + 1);
-      setSelectedLesson(0);
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [selectedLesson, selectedModule, currentModule?.lessons?.length, course.modules?.length]);
-
-  const handlePrevLesson = useCallback(() => {
-    if (selectedLesson > 0) {
-      setSelectedLesson(selectedLesson - 1);
-    } else if (selectedModule > 0) {
-      setSelectedModule(selectedModule - 1);
-      setSelectedLesson((course.modules?.[selectedModule - 1]?.lessons?.length || 1) - 1);
-    }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [selectedLesson, selectedModule, course.modules]);
 
   return (
     <div className="min-h-screen pb-20">
