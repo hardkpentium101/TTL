@@ -32,6 +32,16 @@ class LLMProvider(ABC):
     def generate_quiz(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
         """Generate a 5-question MCQ quiz."""
         pass
+
+    def generate_course_outline(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
+        """Phase 1: Generate a lightweight course outline (modules + lesson titles only)."""
+        pass
+
+    def generate_lesson_content(self, course_title: str, module_title: str,
+                                 lesson_title: str, lesson_id: str,
+                                 level: str = "Beginner", is_technical: bool = False) -> Optional[Dict[str, Any]]:
+        """Phase 2: Generate full content for a single lesson."""
+        pass
     
     def _parse_json_response(self, text: str) -> Optional[Dict[str, Any]]:
         """Parse JSON from LLM response, handling markdown and extra text."""
@@ -103,128 +113,170 @@ class LLMProvider(ABC):
         """Standard course generation prompt."""
         return f"""
 You are a world-class instructional designer and subject-matter expert.
-Your courses are thorough, practical, and deeply educational.
 Return ONLY valid JSON. No markdown, no code fences, no text before or after the JSON.
 
 Topic: {topic}
 Level: {level}
 
-Generate a comprehensive, in-depth course. Every lesson must be rich with
-explanation, examples, and practical application — not just bullet summaries.
-
 Return this exact JSON schema:
 {{
   "course": {{
     "title": "string",
-    "description": "string — 3 to 5 sentences, sell the course",
+    "description": "string — 2–3 sentences",
     "metadata": {{
-      "level": "Beginner | Intermediate | Advanced",
-      "estimated_duration": "string — e.g. 12–15 hours",
+      "level": "{level}",
+      "estimated_duration": "string — e.g. 6–8 hours",
       "prerequisites": ["string"],
-      "learning_outcomes": ["string"],
-      "skills_gained": ["string"]
+      "learning_outcomes": ["string — 3–4 outcomes"],
+      "skills_gained": ["string — 4–5 skills"]
     }},
     "modules": [
       {{
         "id": "module-1",
         "title": "string",
-        "description": "string — 2–3 sentences",
-        "module_outcomes": ["string"],
+        "description": "string — 1–2 sentences",
+        "module_outcomes": ["string — 2 outcomes"],
         "lessons": [
           {{
             "id": "lesson-1-1",
             "title": "string",
-            "duration": "string — e.g. 45 min",
-            "objectives": ["string"],
-            "key_topics": ["string"],
+            "duration": "string — e.g. 30 min",
+            "objectives": ["string — 3 objectives"],
+            "key_topics": ["string — 4 topics"],
             "content": [
-              {{"type":"heading", "text":"string"}},
-              {{"type":"paragraph", "text":"string — 4 to 6 sentences minimum"}},
-              {{"type":"paragraph", "text":"string — continue the explanation"}},
-              {{"type":"callout", "variant":"info|tip|warning|example", "text":"string"}},
-              {{"type":"list", "style":"bullet|numbered", "items":["string"]}},
-              {{"type":"heading", "text":"string"}},
-              {{"type":"paragraph", "text":"string"}},
-              {{"type":"code", "language":"string", "code":"string"}},
-              {{"type":"table", "headers":["string"], "rows":[["string"]]}},
+              {{"type":"heading", "text":"string — section title"}},
+              {{"type":"paragraph", "text":"string — 3–4 sentences, explain the concept"}},
+              {{"type":"callout", "variant":"info|tip|warning|example", "text":"string — 1–2 sentences"}},
+              {{"type":"list", "style":"bullet", "items":["string — 4–5 items"]}},
               {{"type":"link", "text":"string", "url":"https://..."}},
               {{"type":"video", "title":"string", "query":"YouTube search string"}}
             ],
-            "summary": "string — 2–3 sentence recap of the lesson",
+            "summary": "string — 1–2 sentence recap",
             "practice": {{
-              "prompt": "string — a hands-on exercise or reflection question",
-              "hints": ["string"]
+              "prompt": "string — one exercise or reflection question",
+              "hints": ["string — 2 hints"]
             }},
             "resources": [
               {{"title":"string", "url":"https://...", "type":"article|docs|book|tool"}}
             ]
           }}
-        ],
-        "module_quiz": {{
-          "questions": [
-            {{
-              "question": "string",
-              "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
-              "answer": "A",
-              "explanation": "string"
-            }}
-          ]
-        }}
+        ]
       }}
     ]
   }}
 }}
 
 Content rules (all mandatory):
-1. Generate 5–8 modules, each with 4–6 lessons
-2. Every paragraph must be 4–6 sentences minimum — explain WHY, not just WHAT
-3. Every lesson must include: heading · paragraph(s) · callout · list · link · video
-4. Add code blocks for any technical topic (Python, JS, SQL, shell, etc.)
-5. Add tables for comparisons, specs, or structured data (at least 1 per module)
-6. callout variants: info = background context · tip = practical shortcut
-   warning = common mistake · example = worked real-world example
-7. list style: use "numbered" for steps/sequences, "bullet" for options/features
-8. Every lesson ends with a practice exercise the learner can actually do
-9. Every module ends with a 3-question quiz testing that module's material
-10. Progressive difficulty: module-1 foundational → final module advanced/applied
-11. Lesson IDs use format "lesson-{{moduleNum}}-{{lessonNum}}" e.g. "lesson-2-3"
-12. Strict JSON — double-quoted keys, no trailing commas, no comments in output
+1. Generate 3–5 modules, each with 3 lessons (not more — stay concise)
+2. Paragraphs: 3–4 sentences each, explain key ideas clearly
+3. Every lesson must include: heading · paragraph · callout · list · link · video
+4. Add code blocks (technical topics only) and tables (at least 1 per course)
+5. callout variants: info = context · tip = shortcut · warning = pitfall · example = demo
+6. Every lesson ends with a practice prompt
+7. Progressive difficulty: module-1 foundational → final module advanced/applied
+8. Lesson IDs: "lesson-{{moduleNum}}-{{lessonNum}}" e.g. "lesson-2-3"
+9. Strict JSON — double-quoted keys, no trailing commas, no comments
+10. Keep output under 8000 tokens total — be concise and focused
 """
 
     def _get_quiz_prompt(self, topic: str, level: str) -> str:
         """Generate quiz prompt for adaptive assessment."""
         return f"""
 You are an expert instructional designer creating an adaptive assessment quiz.
-Return ONLY valid JSON. No markdown, no code fences, no explanatory text.
+Return ONLY valid JSON. No markdown, no code fences, no text before or after.
 
 TASK:
-Create a 5-question multiple-choice quiz to assess knowledge of: {topic}
+Create a 5-question multiple-choice quiz testing knowledge of: {topic}
 Target Level: {level}
 
-OUTPUT REQUIREMENTS:
-Return ONLY valid JSON with this exact structure:
+OUTPUT — STRICT JSON ONLY:
 {{
   "questions": [
     {{
-      "question": "string",
-      "options": ["option A", "option B", "option C", "option D"],
+      "question": "string — one clear sentence, max 20 words",
+      "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
       "answer": 0,
-      "explanation": "string"
+      "explanation": "string — ONE sentence, max 25 words"
     }}
   ]
 }}
 
-RULES:
+CONSTRAINTS:
 1. Exactly 5 questions
-2. Each question must have exactly 4 options
-3. "answer" is the 0-based index of the correct option (0, 1, 2, or 3)
-4. "explanation" should briefly explain why the answer is correct
-5. Questions should test {level} level understanding of {topic}
-6. Vary difficulty across questions but keep them appropriate for {level}
-7. Only ONE option per question should be correct
-8. Wrong options should be plausible distractors, not obviously incorrect
+2. Each question: exactly 4 options, labeled "A) ...", "B) ...", "C) ...", "D) ..."
+3. "answer" is the 0-based index (0, 1, 2, or 3)
+4. "explanation": ONE short sentence explaining why the answer is correct
+5. Questions must test {level} level understanding of {topic}
+6. Only ONE option per question is correct; wrong options are plausible distractors
+7. Keep everything CONCISE — questions under 20 words, explanations under 25 words
+8. Double-quoted keys, no trailing commas, no comments
 
-STRICT JSON ONLY — double-quoted keys, no trailing commas, no comments
+STRICT JSON ONLY — output the JSON object and nothing else.
+"""
+
+    def _get_outline_prompt(self, topic: str, level: str) -> str:
+        """Phase 1: Course outline prompt (modules + lesson titles only)."""
+        return f"""
+Return ONLY valid JSON. No markdown, no prose.
+
+Topic: {topic}
+Level: {level}
+
+Generate a course outline as JSON:
+{{
+  "title": "string",
+  "description": "string — 2-3 sentences",
+  "estimated_duration": "string — e.g. 6-8 hours",
+  "prerequisites": ["string"],
+  "learning_outcomes": ["string"],
+  "skills_gained": ["string"],
+  "modules": [{{
+    "id": "module-1",
+    "title": "string",
+    "description": "string — 1 sentence",
+    "lessons": [{{"id": "lesson-1-1", "title": "string", "duration": "string — e.g. 30 min"}}]
+  }}]
+}}
+
+Rules: 3-4 modules, 3 lessons each, progressive difficulty, JSON only.
+"""
+
+    def _get_lesson_prompt(self, course_title: str, module_title: str,
+                           lesson_title: str, lesson_id: str,
+                           level: str, is_technical: bool) -> str:
+        """Phase 2: Single lesson content prompt."""
+        technical_note = """
+  - Add code blocks: {{"type":"code", "language":"str", "code":"str"}}
+  - Add comparison tables: {{"type":"table", "headers":["str"], "rows":[["str"]]}}
+""" if is_technical else ""
+
+        return f"""
+Return ONLY valid JSON. No markdown, no prose.
+
+Course: {course_title}
+Level: {level}
+Module: {module_title}
+Lesson: {lesson_title} (ID: {lesson_id})
+
+Generate full lesson content as JSON:
+{{
+  "id": "{lesson_id}",
+  "objectives": ["string — 3 items"],
+  "key_topics": ["string — 4-5 items"],
+  "content": [
+    {{"type":"heading", "text":"string — section title"}},
+    {{"type":"paragraph", "text":"string — 3-4 sentences"}},
+    {{"type":"callout", "variant":"info|tip|warning|example", "text":"string — 1-2 sentences"}},
+    {{"type":"list", "style":"bullet|numbered", "items":["string — 4-5 items"]}},
+    {{"type":"link", "text":"string", "url":"https://..."}},
+    {{"type":"video", "title":"string", "query":"YouTube search string"}}{technical_note}
+  ],
+  "summary": "string — 1-2 sentences",
+  "practice": {{"prompt": "string — one exercise", "hints": ["string", "string"]}},
+  "resources": [{{"title": "string", "url": "https://...", "type": "article|docs|book|tool"}}]
+}}
+
+JSON only. Keep content blocks concise.
 """
 
 
@@ -262,7 +314,7 @@ class OpenRouterProvider(LLMProvider):
                         "model": model,
                         "messages": [{"role": "user", "content": prompt}],
                         "reasoning": {"enabled": True},  # Enable for supported models
-                        "max_tokens": 8192,
+                        "max_tokens": 16384,
                         "temperature": 0.7,
                     }),
                     timeout=120
@@ -340,6 +392,90 @@ class OpenRouterProvider(LLMProvider):
 
             except Exception as e:
                 print(f"[OpenRouter] {model} quiz failed: {str(e)[:100]}")
+                continue
+
+        return None
+
+    def generate_course_outline(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
+        """Phase 1: Generate course outline (max_tokens: 1200)."""
+        prompt = self._get_outline_prompt(topic, level)
+
+        for model in self.models:
+            try:
+                response = requests.post(
+                    url=f"{self.base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://github.com/hardkpentium101/TTL",
+                        "X-Title": "Text-to-Learn",
+                    },
+                    data=json.dumps({
+                        "model": model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "reasoning": {"enabled": True},
+                        "max_tokens": 1200,
+                        "temperature": 0.7,
+                    }),
+                    timeout=60
+                )
+
+                if response.status_code != 200:
+                    continue
+
+                data = response.json()
+                if data.get("choices") and len(data["choices"]) > 0:
+                    text = data["choices"][0]["message"].get("content", "").strip()
+                    outline = self._parse_json_response(text)
+                    if outline and ("title" in outline or "modules" in outline):
+                        print(f"[OpenRouter] ✓ Outline generated with {model}")
+                        return outline
+
+            except Exception as e:
+                print(f"[OpenRouter] Outline failed ({model}): {str(e)[:80]}")
+                continue
+
+        return None
+
+    def generate_lesson_content(self, course_title, module_title, lesson_title, lesson_id,
+                                 level="Beginner", is_technical=False) -> Optional[Dict[str, Any]]:
+        """Phase 2: Generate single lesson content (max_tokens: 1500)."""
+        prompt = self._get_lesson_prompt(course_title, module_title, lesson_title,
+                                          lesson_id, level, is_technical)
+
+        for model in self.models:
+            try:
+                response = requests.post(
+                    url=f"{self.base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://github.com/hardkpentium101/TTL",
+                        "X-Title": "Text-to-Learn",
+                    },
+                    data=json.dumps({
+                        "model": model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "reasoning": {"enabled": True},
+                        "max_tokens": 1500,
+                        "temperature": 0.7,
+                    }),
+                    timeout=60
+                )
+
+                if response.status_code != 200:
+                    continue
+
+                data = response.json()
+                if data.get("choices") and len(data["choices"]) > 0:
+                    text = data["choices"][0]["message"].get("content", "").strip()
+                    lesson = self._parse_json_response(text)
+                    if lesson and "content" in lesson:
+                        print(f"[OpenRouter] ✓ Lesson {lesson_id} generated with {model}")
+                        return lesson
+
+            except Exception as e:
+                print(f"[OpenRouter] Lesson {lesson_id} failed ({model}): {str(e)[:80]}")
                 continue
 
         return None
@@ -451,6 +587,74 @@ class GeminiProvider(LLMProvider):
 
         return None
 
+    def generate_course_outline(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
+        """Phase 1: Generate course outline (max_tokens: 1200)."""
+        if not self.client:
+            return None
+
+        from google.genai import types
+        prompt = self._get_outline_prompt(topic, level)
+
+        for model in self.models:
+            try:
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=0.7,
+                        top_p=0.9,
+                        max_output_tokens=1200,
+                    )
+                )
+
+                if response and response.text:
+                    text = response.text.strip()
+                    outline = self._parse_json_response(text)
+                    if outline and ("title" in outline or "modules" in outline):
+                        print(f"[Gemini] ✓ Outline generated with {model}")
+                        return outline
+
+            except Exception as e:
+                print(f"[Gemini] Outline failed ({model}): {str(e)[:80]}")
+                continue
+
+        return None
+
+    def generate_lesson_content(self, course_title, module_title, lesson_title, lesson_id,
+                                 level="Beginner", is_technical=False) -> Optional[Dict[str, Any]]:
+        """Phase 2: Generate single lesson content (max_tokens: 1500)."""
+        if not self.client:
+            return None
+
+        from google.genai import types
+        prompt = self._get_lesson_prompt(course_title, module_title, lesson_title,
+                                          lesson_id, level, is_technical)
+
+        for model in self.models:
+            try:
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        temperature=0.7,
+                        top_p=0.9,
+                        max_output_tokens=1500,
+                    )
+                )
+
+                if response and response.text:
+                    text = response.text.strip()
+                    lesson = self._parse_json_response(text)
+                    if lesson and "content" in lesson:
+                        print(f"[Gemini] ✓ Lesson {lesson_id} generated with {model}")
+                        return lesson
+
+            except Exception as e:
+                print(f"[Gemini] Lesson {lesson_id} failed ({model}): {str(e)[:80]}")
+                continue
+
+        return None
+
 
 # Add new providers here
 PROVIDER_REGISTRY = {
@@ -536,6 +740,35 @@ class LLMManager:
             return None
 
         return self.provider.generate_quiz(topic, level)
+
+    def generate_course_outline(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
+        """
+        Phase 1: Generate a lightweight course outline.
+
+        Returns:
+            Outline dict with "title", "modules" (each with "lessons") or None
+        """
+        if not self.provider:
+            return None
+
+        return self.provider.generate_course_outline(topic, level)
+
+    def generate_lesson_content(self, course_title: str, module_title: str,
+                                 lesson_title: str, lesson_id: str,
+                                 level: str = "Beginner",
+                                 is_technical: bool = False) -> Optional[Dict[str, Any]]:
+        """
+        Phase 2: Generate full content for a single lesson.
+
+        Returns:
+            Lesson content dict with "content", "objectives", etc. or None
+        """
+        if not self.provider:
+            return None
+
+        return self.provider.generate_lesson_content(
+            course_title, module_title, lesson_title, lesson_id, level, is_technical
+        )
     
     @classmethod
     def get_available_providers(cls) -> List[str]:

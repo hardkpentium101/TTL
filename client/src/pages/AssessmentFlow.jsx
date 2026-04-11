@@ -168,28 +168,28 @@ function AdaptiveQuiz({ topic, level, onComplete }) {
   const [quizLevel, setQuizLevel] = useState('');
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
 
     const loadQuiz = async () => {
       try {
         console.log('[Quiz] Starting quiz generation for:', topic, level);
         setLoading(true);
         setError('');
-        const quizData = await generateQuiz(topic, level);
+        const quizData = await generateQuiz(topic, level, controller.signal);
         console.log('[Quiz] Quiz response received:', quizData);
-        if (!cancelled) {
-          setQuestions(quizData.questions);
-          setQuizLevel(quizData.quiz_level);
-          setUserAnswers(new Array(quizData.questions.length).fill(null));
-          console.log('[Quiz] Quiz loaded with', quizData.questions.length, 'questions');
-        }
+        setQuestions(quizData.questions);
+        setQuizLevel(quizData.quiz_level);
+        setUserAnswers(new Array(quizData.questions.length).fill(null));
+        console.log('[Quiz] Quiz loaded with', quizData.questions.length, 'questions');
       } catch (err) {
-        if (!cancelled) {
-          console.error('[Quiz] Quiz generation error:', err);
-          setError(err.response?.data?.detail || err.message || 'Failed to generate quiz');
+        if (err.name === 'CanceledError') {
+          console.log('[Quiz] Request cancelled (duplicate mount)');
+          return;
         }
+        console.error('[Quiz] Quiz generation error:', err);
+        setError(err.response?.data?.detail || err.message || 'Failed to generate quiz');
       } finally {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setLoading(false);
         }
       }
@@ -198,7 +198,7 @@ function AdaptiveQuiz({ topic, level, onComplete }) {
     loadQuiz();
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [topic, level]);
 
@@ -573,12 +573,12 @@ function CourseGeneration({ topic, level }) {
   const navigate = useNavigate();
 
   const steps = [
-    { id: 1, text: 'Analyzing your assessment', icon: '📊' },
-    { id: 2, text: 'Researching concepts', icon: '🔍' },
-    { id: 3, text: 'Structuring modules', icon: '🏗️' },
-    { id: 4, text: 'Creating lessons', icon: '📝' },
-    { id: 5, text: 'Adding resources', icon: '🔗' },
-    { id: 6, text: 'Finalizing content', icon: '✨' },
+    { id: 1, text: 'Generating course outline', icon: '📋' },
+    { id: 2, text: 'Creating lessons', icon: '📝' },
+    { id: 3, text: 'Generating more lessons', icon: '✍️' },
+    { id: 4, text: 'Almost done with lessons', icon: '📚' },
+    { id: 5, text: 'Adding resources & links', icon: '🔗' },
+    { id: 6, text: 'Finalizing your course', icon: '✨' },
   ];
 
   useEffect(() => {

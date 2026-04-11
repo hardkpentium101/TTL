@@ -174,8 +174,8 @@ export const checkHealth = async () => {
 // ============= Quiz Assessment Endpoints =============
 
 // Generate adaptive quiz (LLM calls can take 2-3 minutes, so use 180s timeout)
-export const generateQuiz = async (topic, level) => {
-  const response = await api.post('/api/generate-quiz', { topic, level }, { timeout: 180000 });
+export const generateQuiz = async (topic, level, signal = null) => {
+  const response = await api.post('/api/generate-quiz', { topic, level }, { timeout: 180000, signal });
   return response.data;
 };
 
