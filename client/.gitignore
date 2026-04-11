@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python virtual environments (should not be here but just in case)
+venv/
+.env

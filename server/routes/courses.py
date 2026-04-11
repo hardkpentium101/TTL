@@ -5,9 +5,12 @@ Handles course CRUD operations, generation, and retrieval.
 
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Security
 from fastapi.security import HTTPAuthorizationCredentials
-from typing import Optional
+from fastapi.responses import StreamingResponse
+from typing import List, Optional
 from bson import ObjectId
 from datetime import datetime
+import asyncio
+import json
 import re
 
 from models.course import Course, Module, Lesson, LessonContentBlock
@@ -24,6 +27,9 @@ router = APIRouter(prefix="/api", tags=["courses"])
 MAX_TOPIC_LENGTH = 500  # Maximum topic length to prevent DoS
 MIN_TOPIC_LENGTH = 3  # Minimum topic length for meaningful input
 MAX_TITLE_LENGTH = 200  # Maximum course title length
+
+# Valid proficiency levels
+VALID_LEVELS = ["Beginner", "Intermediate", "Advanced"]
 
 
 def sanitize_input(text: str) -> str:
@@ -472,3 +478,228 @@ async def get_course_result(job_id: str):
         raise HTTPException(status_code=500, detail=task.get("message", "Task failed"))
 
     raise HTTPException(status_code=404, detail="Unknown status")
+
+
+@router.get("/course-status-stream/{job_id}")
+async def stream_course_status(job_id: str):
+    """
+    SSE endpoint that streams real-time course generation progress.
+    Clients connect and receive updates as events instead of polling.
+    """
+    from task_queue import task_queue
+
+    task = task_queue.get_task(job_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    async def event_generator():
+        """Yield SSE events as they arrive."""
+        queue = await task_queue.watch_task(job_id)
+
+        try:
+            while True:
+                task_data = await queue.get()
+                if task_data is None:
+                    break
+
+                yield f"data: {json.dumps(task_data)}\n\n"
+
+                # Stop streaming on terminal states
+                if task_data["status"] in ("completed", "failed"):
+                    yield "event: done\n"
+                    yield f"data: {json.dumps({'status': task_data['status']})}\n\n"
+                    break
+        except asyncio.CancelledError:
+            pass
+        finally:
+            # Remove watcher from task queue
+            task_queue._remove_watchers(job_id)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        }
+    )
+
+
+# ============= Adaptive Quiz Assessment =============
+
+
+def get_quiz_level(user_level: str) -> str:
+    """
+    Get the quiz level (one level below user's stated level).
+    Beginner -> tests Beginner concepts
+    Intermediate -> tests Beginner->Intermediate concepts
+    Advanced -> tests Intermediate->Advanced concepts
+    """
+    level_map = {
+        "Beginner": "Beginner",
+        "Intermediate": "Beginner",
+        "Advanced": "Intermediate",
+    }
+    return level_map.get(user_level, "Beginner")
+
+
+@router.post("/generate-quiz")
+async def generate_quiz_endpoint(
+    request: dict,
+    user: dict = Depends(get_user_or_anonymous),
+):
+    """
+    Generate a 5-question adaptive MCQ quiz.
+    Expects: { "topic": "string", "level": "Beginner|Intermediate|Advanced" }
+    Returns quiz questions one level below the user's stated level.
+    """
+    from llm_manager import LLMManager
+
+    topic = request.get("topic", "")
+    level = request.get("level", "Beginner")
+
+    # Validate topic
+    topic = validate_topic(topic)
+
+    # Validate level
+    if level not in VALID_LEVELS:
+        level = "Beginner"
+
+    # Determine quiz level (one level below)
+    quiz_level = get_quiz_level(level)
+
+    try:
+        llm = LLMManager()
+
+        # Generate quiz
+        quiz_data = llm.generate_quiz(topic, quiz_level)
+
+        if not quiz_data or "questions" not in quiz_data:
+            raise HTTPException(
+                status_code=500, detail="Failed to generate quiz questions"
+            )
+
+        # Validate quiz structure
+        questions = quiz_data.get("questions", [])
+        if len(questions) != 5:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Expected 5 questions, got {len(questions)}",
+            )
+
+        # Validate each question has required fields
+        for i, q in enumerate(questions):
+            if not all(k in q for k in ["question", "options", "answer", "explanation"]):
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Question {i+1} missing required fields",
+                )
+            if not isinstance(q.get("options"), list) or len(q.get("options", [])) != 4:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Question {i+1} must have exactly 4 options",
+                )
+            if not isinstance(q.get("answer"), int) or not (0 <= q["answer"] <= 3):
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Question {i+1} answer must be 0-3",
+                )
+
+        return {
+            "topic": topic,
+            "user_level": level,
+            "quiz_level": quiz_level,
+            "questions": questions,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to generate quiz: {str(e)}"
+        )
+
+
+@router.post("/evaluate-quiz")
+async def evaluate_quiz_endpoint(
+    request: dict,
+    user: dict = Depends(get_user_or_anonymous),
+):
+    """
+    Evaluate quiz answers and return score + assessed level.
+    Expects: {
+        "questions": [...],  # Original questions with answers
+        "user_answers": [0, 1, 2, ...],  # User's answers (indices)
+        "user_level": "Beginner|Intermediate|Advanced",
+    }
+    Returns: { "score": 80, "correct": 4, "total": 5, "assessed_level": "Intermediate" }
+    """
+    questions = request.get("questions", [])
+    user_answers = request.get("user_answers", [])
+    user_level = request.get("level", "Beginner")
+
+    if not questions or not user_answers:
+        raise HTTPException(status_code=400, detail="Missing questions or answers")
+
+    if len(user_answers) != len(questions):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Expected {len(questions)} answers, got {len(user_answers)}",
+        )
+
+    try:
+        # Calculate score
+        correct = 0
+        total = len(questions)
+
+        for i, (question, user_answer) in enumerate(zip(questions, user_answers)):
+            if user_answer == question.get("answer"):
+                correct += 1
+
+        score = round((correct / total) * 100) if total > 0 else 0
+
+        # Derive assessed level based on score
+        assessed_level = derive_assessed_level(score, user_level)
+
+        return {
+            "score": score,
+            "correct": correct,
+            "total": total,
+            "assessed_level": assessed_level,
+            "user_level": user_level,
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to evaluate quiz: {str(e)}"
+        )
+
+
+def derive_assessed_level(score: int, user_level: str) -> str:
+    """
+    Derive assessed level based on quiz score.
+
+    Scoring logic:
+    - 0-40%: One level below user's stated level (or Beginner)
+    - 41-70: User's stated level
+    - 71-100%: One level above user's stated level (or Advanced)
+    """
+    levels = ["Beginner", "Intermediate", "Advanced"]
+
+    try:
+        user_level_idx = levels.index(user_level)
+    except ValueError:
+        user_level_idx = 0
+
+    if score <= 40:
+        # Below expectations
+        assessed_idx = max(0, user_level_idx - 1)
+    elif score <= 70:
+        # At expectations
+        assessed_idx = user_level_idx
+    else:
+        # Above expectations
+        assessed_idx = min(len(levels) - 1, user_level_idx + 1)
+
+    return levels[assessed_idx]
