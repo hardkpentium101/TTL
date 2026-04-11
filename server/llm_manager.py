@@ -17,13 +17,30 @@ except ImportError:
     print("[LLM] json5 not installed, using standard JSON parser")
 
 
+# ============= Model Lists =============
+OPENROUTER_MODELS = {
+    "quiz": [
+        "meta-llama/llama-3.3-70b-instruct:free",   # fast, reliable JSON
+        "google/gemma-3-27b-it:free",                # fallback
+        "openai/gpt-oss-20b:free",                   # fallback
+        "openrouter/free",                           # last resort — random model
+    ],
+    "course": [
+        "openai/gpt-oss-120b:free",                  # 8K output, good JSON
+        "nvidia/nemotron-3-super-120b-a12b:free",    # 8K output fallback
+        "meta-llama/llama-3.3-70b-instruct:free",    # smaller but reliable
+        "openrouter/free",                           # last resort
+    ],
+}
+
+
 class LLMProvider(ABC):
     """Base class for all LLM providers."""
-    
+
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.name = self.__class__.__name__
-    
+
     @abstractmethod
     def generate_course(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
         """Generate a course structure."""
@@ -33,16 +50,6 @@ class LLMProvider(ABC):
         """Generate a 5-question MCQ quiz."""
         pass
 
-    def generate_course_outline(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
-        """Phase 1: Generate a lightweight course outline (modules + lesson titles only)."""
-        pass
-
-    def generate_lesson_content(self, course_title: str, module_title: str,
-                                 lesson_title: str, lesson_id: str,
-                                 level: str = "Beginner", is_technical: bool = False) -> Optional[Dict[str, Any]]:
-        """Phase 2: Generate full content for a single lesson."""
-        pass
-    
     def _parse_json_response(self, text: str) -> Optional[Dict[str, Any]]:
         """Parse JSON from LLM response, handling markdown and extra text."""
         if not text:
@@ -91,73 +98,69 @@ class LLMProvider(ABC):
         """Clean and fix common JSON issues in LLM responses."""
         # 1. Fix unquoted keys
         text = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', text)
-        
+
         # 2. Remove trailing commas before } or ]
         text = re.sub(r',(\s*[}\]])', r'\1', text)
-        
+
         # 3. Fix missing commas between key-value pairs (common LLM error)
-        #    Pattern: "value" followed by newline/whitespace then "key" without comma
         text = re.sub(r'("|\d|\]|\})\s*\n(\s*)"', r'\1,\n\2"', text)
-        
+
         # 4. Fix double commas
         text = re.sub(r',\s*,', ',', text)
-        
+
         # 5. Remove any text before the first { (LLM preamble)
         first_brace = text.find("{")
         if first_brace > 0:
             text = text[first_brace:]
-        
+
         return text
-    
+
     def _get_course_prompt(self, topic: str, level: str) -> str:
         """Standard course generation prompt."""
         return f"""
-You are a world-class instructional designer and subject-matter expert.
-Return ONLY valid JSON. No markdown, no code fences, no text before or after the JSON.
+You are an expert instructional designer and curriculum architect.
 
+Your task is to generate a structured, high-quality learning course from a user-provided topic.
+
+INPUT:
 Topic: {topic}
-Level: {level}
+Target Audience: {level}
+Tone: Clear, engaging, and educational
 
-Return this exact JSON schema:
+OUTPUT REQUIREMENTS:
+Return ONLY valid JSON. No explanations, no markdown, no extra text.
+IMPORTANT: All property names MUST be in double quotes. Use strict JSON syntax.
+
+The JSON must strictly follow this schema:
 {{
   "course": {{
     "title": "string",
-    "description": "string — 2–3 sentences",
+    "description": "string",
     "metadata": {{
-      "level": "{level}",
-      "estimated_duration": "string — e.g. 6–8 hours",
-      "prerequisites": ["string"],
-      "learning_outcomes": ["string — 3–4 outcomes"],
-      "skills_gained": ["string — 4–5 skills"]
+      "level": "Beginner | Intermediate | Advanced",
+      "estimated_duration": "string",
+      "prerequisites": ["string"]
     }},
     "modules": [
       {{
         "id": "module-1",
         "title": "string",
-        "description": "string — 1–2 sentences",
-        "module_outcomes": ["string — 2 outcomes"],
+        "description": "string",
         "lessons": [
           {{
-            "id": "lesson-1-1",
+            "id": "lesson-1",
             "title": "string",
-            "duration": "string — e.g. 30 min",
-            "objectives": ["string — 3 objectives"],
-            "key_topics": ["string — 4 topics"],
+            "objectives": ["string"],
+            "key_topics": ["string"],
             "content": [
-              {{"type":"heading", "text":"string — section title"}},
-              {{"type":"paragraph", "text":"string — 3–4 sentences, explain the concept"}},
-              {{"type":"callout", "variant":"info|tip|warning|example", "text":"string — 1–2 sentences"}},
-              {{"type":"list", "style":"bullet", "items":["string — 4–5 items"]}},
-              {{"type":"link", "text":"string", "url":"https://..."}},
-              {{"type":"video", "title":"string", "query":"YouTube search string"}}
+              {{"type": "heading", "text": "string"}},
+              {{"type": "paragraph", "text": "string"}},
+              {{"type": "list", "items": ["string"]}},
+              {{"type": "link", "text": "string", "url": "string"}},
+              {{"type": "video", "query": "string"}}
             ],
-            "summary": "string — 1–2 sentence recap",
-            "practice": {{
-              "prompt": "string — one exercise or reflection question",
-              "hints": ["string — 2 hints"]
-            }},
             "resources": [
-              {{"title":"string", "url":"https://...", "type":"article|docs|book|tool"}}
+              {{"title": "string", "url": "string"}}
             ]
           }}
         ]
@@ -166,17 +169,20 @@ Return this exact JSON schema:
   }}
 }}
 
-Content rules (all mandatory):
-1. Generate 3–5 modules, each with 3 lessons (not more — stay concise)
-2. Paragraphs: 3–4 sentences each, explain key ideas clearly
-3. Every lesson must include: heading · paragraph · callout · list · link · video
-4. Add code blocks (technical topics only) and tables (at least 1 per course)
-5. callout variants: info = context · tip = shortcut · warning = pitfall · example = demo
-6. Every lesson ends with a practice prompt
-7. Progressive difficulty: module-1 foundational → final module advanced/applied
-8. Lesson IDs: "lesson-{{moduleNum}}-{{lessonNum}}" e.g. "lesson-2-3"
-9. Strict JSON — double-quoted keys, no trailing commas, no comments
-10. Keep output under 8000 tokens total — be concise and focused
+CONTENT RULES:
+1. Generate 3-6 modules, each with 3-5 lessons
+2. Each lesson: 3-5 objectives, 4-6 key topics
+3. Content must include:
+   - headings
+   - paragraphs
+   - at least 1 list
+   - at least 1 external link (https://)
+   - at least 1 video block with YouTube search query
+4. Video query examples: "Python basics tutorial", "Machine Learning explained"
+5. Use STRICT JSON syntax - all keys in double quotes, no trailing commas
+6. Progressive difficulty across modules
+
+NOW GENERATE THE COURSE. Return ONLY the JSON.
 """
 
     def _get_quiz_prompt(self, topic: str, level: str) -> str:
@@ -214,94 +220,24 @@ CONSTRAINTS:
 STRICT JSON ONLY — output the JSON object and nothing else.
 """
 
-    def _get_outline_prompt(self, topic: str, level: str) -> str:
-        """Phase 1: Course outline prompt (modules + lesson titles only)."""
-        return f"""
-Return ONLY valid JSON. No markdown, no prose.
-
-Topic: {topic}
-Level: {level}
-
-Generate a course outline as JSON:
-{{
-  "title": "string",
-  "description": "string — 2-3 sentences",
-  "estimated_duration": "string — e.g. 6-8 hours",
-  "prerequisites": ["string"],
-  "learning_outcomes": ["string"],
-  "skills_gained": ["string"],
-  "modules": [{{
-    "id": "module-1",
-    "title": "string",
-    "description": "string — 1 sentence",
-    "lessons": [{{"id": "lesson-1-1", "title": "string", "duration": "string — e.g. 30 min"}}]
-  }}]
-}}
-
-Rules: 3-4 modules, 3 lessons each, progressive difficulty, JSON only.
-"""
-
-    def _get_lesson_prompt(self, course_title: str, module_title: str,
-                           lesson_title: str, lesson_id: str,
-                           level: str, is_technical: bool) -> str:
-        """Phase 2: Single lesson content prompt."""
-        technical_note = """
-  - Add code blocks: {{"type":"code", "language":"str", "code":"str"}}
-  - Add comparison tables: {{"type":"table", "headers":["str"], "rows":[["str"]]}}
-""" if is_technical else ""
-
-        return f"""
-Return ONLY valid JSON. No markdown, no prose.
-
-Course: {course_title}
-Level: {level}
-Module: {module_title}
-Lesson: {lesson_title} (ID: {lesson_id})
-
-Generate full lesson content as JSON:
-{{
-  "id": "{lesson_id}",
-  "objectives": ["string — 3 items"],
-  "key_topics": ["string — 4-5 items"],
-  "content": [
-    {{"type":"heading", "text":"string — section title"}},
-    {{"type":"paragraph", "text":"string — 3-4 sentences"}},
-    {{"type":"callout", "variant":"info|tip|warning|example", "text":"string — 1-2 sentences"}},
-    {{"type":"list", "style":"bullet|numbered", "items":["string — 4-5 items"]}},
-    {{"type":"link", "text":"string", "url":"https://..."}},
-    {{"type":"video", "title":"string", "query":"YouTube search string"}}{technical_note}
-  ],
-  "summary": "string — 1-2 sentences",
-  "practice": {{"prompt": "string — one exercise", "hints": ["string", "string"]}},
-  "resources": [{{"title": "string", "url": "https://...", "type": "article|docs|book|tool"}}]
-}}
-
-JSON only. Keep content blocks concise.
-"""
-
 
 class OpenRouterProvider(LLMProvider):
-    """OpenRouter provider supporting 100+ models."""
-    
+    """OpenRouter provider supporting multiple models."""
+
     def __init__(self, api_key: str):
         super().__init__(api_key)
         self.base_url = "https://openrouter.ai/api/v1"
-        # Models to try in priority order (tested & working)
-        self.models = [
-            "qwen/qwen3.6-plus:free",                   # Best quality & speed
-            "stepfun/step-3.5-flash:free",              # First fallback (~27s)
-            "arcee-ai/trinity-large-preview:free",      # Second fallback (~41s)
-            "nvidia/nemotron-3-super-120b-a12b:free",   # Third fallback (~40s)
-        ]
-    
+        self.course_models = OPENROUTER_MODELS["course"]
+        self.quiz_models = OPENROUTER_MODELS["quiz"]
+
     def generate_course(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
         """Generate course using OpenRouter models."""
         prompt = self._get_course_prompt(topic, level)
-        
-        for model in self.models:
+
+        for model in self.course_models:
             try:
-                print(f"[OpenRouter] Trying {model}...")
-                
+                print(f"[OpenRouter] Trying {model} for course...")
+
                 response = requests.post(
                     url=f"{self.base_url}/chat/completions",
                     headers={
@@ -313,25 +249,25 @@ class OpenRouterProvider(LLMProvider):
                     data=json.dumps({
                         "model": model,
                         "messages": [{"role": "user", "content": prompt}],
-                        "reasoning": {"enabled": True},  # Enable for supported models
+                        "reasoning": {"enabled": True},
                         "max_tokens": 16384,
                         "temperature": 0.7,
                     }),
-                    timeout=120
+                    timeout=180
                 )
-                
+
                 if response.status_code != 200:
                     print(f"[OpenRouter] {model} returned status {response.status_code}")
                     continue
-                
+
                 data = response.json()
-                
+
                 if data.get("choices") and len(data["choices"]) > 0:
                     text = data["choices"][0]["message"].get("content", "").strip()
                     course_data = self._parse_json_response(text)
-                    
+
                     if course_data and "course" in course_data:
-                        print(f"[OpenRouter] ✓ Generated with {model}")
+                        print(f"[OpenRouter] ✓ Course generated with {model}")
                         return {
                             "_provider": "openrouter",
                             "_model": model,
@@ -339,7 +275,7 @@ class OpenRouterProvider(LLMProvider):
                             "_reasoning_tokens": data.get("usage", {}).get("reasoning_tokens", 0),
                             **course_data
                         }
-                
+
                 print(f"[OpenRouter] {model} returned no valid response")
 
             except Exception as e:
@@ -352,7 +288,7 @@ class OpenRouterProvider(LLMProvider):
         """Generate quiz using OpenRouter models."""
         prompt = self._get_quiz_prompt(topic, level)
 
-        for model in self.models:
+        for model in self.quiz_models:
             try:
                 print(f"[OpenRouter] Trying {model} for quiz...")
 
@@ -396,99 +332,15 @@ class OpenRouterProvider(LLMProvider):
 
         return None
 
-    def generate_course_outline(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
-        """Phase 1: Generate course outline (max_tokens: 1200)."""
-        prompt = self._get_outline_prompt(topic, level)
-
-        for model in self.models:
-            try:
-                response = requests.post(
-                    url=f"{self.base_url}/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": "https://github.com/hardkpentium101/TTL",
-                        "X-Title": "Text-to-Learn",
-                    },
-                    data=json.dumps({
-                        "model": model,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "reasoning": {"enabled": True},
-                        "max_tokens": 1200,
-                        "temperature": 0.7,
-                    }),
-                    timeout=60
-                )
-
-                if response.status_code != 200:
-                    continue
-
-                data = response.json()
-                if data.get("choices") and len(data["choices"]) > 0:
-                    text = data["choices"][0]["message"].get("content", "").strip()
-                    outline = self._parse_json_response(text)
-                    if outline and ("title" in outline or "modules" in outline):
-                        print(f"[OpenRouter] ✓ Outline generated with {model}")
-                        return outline
-
-            except Exception as e:
-                print(f"[OpenRouter] Outline failed ({model}): {str(e)[:80]}")
-                continue
-
-        return None
-
-    def generate_lesson_content(self, course_title, module_title, lesson_title, lesson_id,
-                                 level="Beginner", is_technical=False) -> Optional[Dict[str, Any]]:
-        """Phase 2: Generate single lesson content (max_tokens: 1500)."""
-        prompt = self._get_lesson_prompt(course_title, module_title, lesson_title,
-                                          lesson_id, level, is_technical)
-
-        for model in self.models:
-            try:
-                response = requests.post(
-                    url=f"{self.base_url}/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": "https://github.com/hardkpentium101/TTL",
-                        "X-Title": "Text-to-Learn",
-                    },
-                    data=json.dumps({
-                        "model": model,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "reasoning": {"enabled": True},
-                        "max_tokens": 1500,
-                        "temperature": 0.7,
-                    }),
-                    timeout=60
-                )
-
-                if response.status_code != 200:
-                    continue
-
-                data = response.json()
-                if data.get("choices") and len(data["choices"]) > 0:
-                    text = data["choices"][0]["message"].get("content", "").strip()
-                    lesson = self._parse_json_response(text)
-                    if lesson and "content" in lesson:
-                        print(f"[OpenRouter] ✓ Lesson {lesson_id} generated with {model}")
-                        return lesson
-
-            except Exception as e:
-                print(f"[OpenRouter] Lesson {lesson_id} failed ({model}): {str(e)[:80]}")
-                continue
-
-        return None
-
 
 class GeminiProvider(LLMProvider):
     """Google Gemini/Gemma provider."""
-    
+
     def __init__(self, api_key: str):
         super().__init__(api_key)
         self.client = None
         self._initialize_client()
-        
+
         # Models to try in priority order
         self.models = [
             "gemma-3-27b",
@@ -496,7 +348,7 @@ class GeminiProvider(LLMProvider):
             "gemma-3-4b",
             "gemma-3-1b",
         ]
-    
+
     def _initialize_client(self):
         """Initialize Gemini client."""
         try:
@@ -505,42 +357,42 @@ class GeminiProvider(LLMProvider):
             print(f"[Gemini] ✓ Client initialized")
         except Exception as e:
             print(f"[Gemini] Warning: Could not initialize client: {e}")
-    
+
     def generate_course(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
         """Generate course using Gemini/Gemma models."""
         if not self.client:
             return None
-        
+
         from google.genai import types
         prompt = self._get_course_prompt(topic, level)
-        
+
         for model in self.models:
             try:
-                print(f"[Gemini] Trying {model}...")
-                
+                print(f"[Gemini] Trying {model} for course...")
+
                 response = self.client.models.generate_content(
                     model=model,
                     contents=prompt,
                     config=types.GenerateContentConfig(
                         temperature=0.7,
                         top_p=0.9,
-                        max_output_tokens=8192,
+                        max_output_tokens=16384,
                     )
                 )
-                
+
                 if response and response.text:
                     text = response.text.strip()
                     course_data = self._parse_json_response(text)
-                    
+
                     if course_data and "course" in course_data:
-                        print(f"[Gemini] ✓ Generated with {model}")
+                        print(f"[Gemini] ✓ Course generated with {model}")
                         return {
                             "_provider": "gemini",
                             "_model": model,
                             "_ai_generated": True,
                             **course_data
                         }
-                
+
                 print(f"[Gemini] {model} returned empty response")
 
             except Exception as e:
@@ -587,74 +439,6 @@ class GeminiProvider(LLMProvider):
 
         return None
 
-    def generate_course_outline(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
-        """Phase 1: Generate course outline (max_tokens: 1200)."""
-        if not self.client:
-            return None
-
-        from google.genai import types
-        prompt = self._get_outline_prompt(topic, level)
-
-        for model in self.models:
-            try:
-                response = self.client.models.generate_content(
-                    model=model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        temperature=0.7,
-                        top_p=0.9,
-                        max_output_tokens=1200,
-                    )
-                )
-
-                if response and response.text:
-                    text = response.text.strip()
-                    outline = self._parse_json_response(text)
-                    if outline and ("title" in outline or "modules" in outline):
-                        print(f"[Gemini] ✓ Outline generated with {model}")
-                        return outline
-
-            except Exception as e:
-                print(f"[Gemini] Outline failed ({model}): {str(e)[:80]}")
-                continue
-
-        return None
-
-    def generate_lesson_content(self, course_title, module_title, lesson_title, lesson_id,
-                                 level="Beginner", is_technical=False) -> Optional[Dict[str, Any]]:
-        """Phase 2: Generate single lesson content (max_tokens: 1500)."""
-        if not self.client:
-            return None
-
-        from google.genai import types
-        prompt = self._get_lesson_prompt(course_title, module_title, lesson_title,
-                                          lesson_id, level, is_technical)
-
-        for model in self.models:
-            try:
-                response = self.client.models.generate_content(
-                    model=model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        temperature=0.7,
-                        top_p=0.9,
-                        max_output_tokens=1500,
-                    )
-                )
-
-                if response and response.text:
-                    text = response.text.strip()
-                    lesson = self._parse_json_response(text)
-                    if lesson and "content" in lesson:
-                        print(f"[Gemini] ✓ Lesson {lesson_id} generated with {model}")
-                        return lesson
-
-            except Exception as e:
-                print(f"[Gemini] Lesson {lesson_id} failed ({model}): {str(e)[:80]}")
-                continue
-
-        return None
-
 
 # Add new providers here
 PROVIDER_REGISTRY = {
@@ -666,56 +450,56 @@ PROVIDER_REGISTRY = {
 class LLMManager:
     """
     Manages LLM API calls across different providers.
-    
+
     Usage:
         llm = LLMManager()  # Reads LLM_PROVIDER from env
         course = llm.generate_course("Python Basics")
-    
+
     Env variables:
         LLM_PROVIDER: Provider to use (openrouter, gemini, etc.)
         <PROVIDER>_API_KEY: API key for the selected provider
     """
-    
+
     def __init__(self, provider_name: Optional[str] = None):
         """
         Initialize LLM Manager.
-        
+
         Args:
             provider_name: Override provider name (default: reads from LLM_PROVIDER env)
         """
-        self.provider_name = (provider_name or os.getenv("LLM_PROVIDER", "gemini")).lower()
+        self.provider_name = (provider_name or os.getenv("LLM_PROVIDER", "openrouter")).lower()
         self.provider = self._initialize_provider(self.provider_name)
-        
+
         if self.provider:
             print(f"[LLM] ✓ Using provider: {self.provider_name}")
         else:
             print(f"[LLM] ✗ Provider '{self.provider_name}' not available")
-    
+
     def _initialize_provider(self, name: str) -> Optional[LLMProvider]:
         """Initialize the specified provider."""
         provider_class = PROVIDER_REGISTRY.get(name)
-        
+
         if not provider_class:
             print(f"[LLM] Unknown provider: {name}. Available: {list(PROVIDER_REGISTRY.keys())}")
             return None
-        
+
         # Get API key from env (convention: <PROVIDER>_API_KEY)
         env_key = f"{name.upper()}_API_KEY"
         api_key = os.getenv(env_key)
-        
+
         if not api_key:
             print(f"[LLM] No API key found for {name} (env: {env_key})")
             return None
-        
+
         return provider_class(api_key)
-    
+
     def generate_course(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
         """
         Generate a course using the configured provider.
 
         Args:
             topic: Course topic
-            level: Target audience level
+            level: Target audience level (from assessment)
 
         Returns:
             Course data dict or None if generation fails
@@ -741,45 +525,16 @@ class LLMManager:
 
         return self.provider.generate_quiz(topic, level)
 
-    def generate_course_outline(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
-        """
-        Phase 1: Generate a lightweight course outline.
-
-        Returns:
-            Outline dict with "title", "modules" (each with "lessons") or None
-        """
-        if not self.provider:
-            return None
-
-        return self.provider.generate_course_outline(topic, level)
-
-    def generate_lesson_content(self, course_title: str, module_title: str,
-                                 lesson_title: str, lesson_id: str,
-                                 level: str = "Beginner",
-                                 is_technical: bool = False) -> Optional[Dict[str, Any]]:
-        """
-        Phase 2: Generate full content for a single lesson.
-
-        Returns:
-            Lesson content dict with "content", "objectives", etc. or None
-        """
-        if not self.provider:
-            return None
-
-        return self.provider.generate_lesson_content(
-            course_title, module_title, lesson_title, lesson_id, level, is_technical
-        )
-    
     @classmethod
     def get_available_providers(cls) -> List[str]:
         """Get list of available/registered providers."""
         return list(PROVIDER_REGISTRY.keys())
-    
+
     @classmethod
     def register_provider(cls, name: str, provider_class: type):
         """
         Register a new provider at runtime.
-        
+
         Usage:
             LLMManager.register_provider("anthropic", AnthropicProvider)
         """

@@ -573,12 +573,12 @@ function CourseGeneration({ topic, level }) {
   const navigate = useNavigate();
 
   const steps = [
-    { id: 1, text: 'Generating course outline', icon: '📋' },
-    { id: 2, text: 'Creating lessons', icon: '📝' },
-    { id: 3, text: 'Generating more lessons', icon: '✍️' },
-    { id: 4, text: 'Almost done with lessons', icon: '📚' },
-    { id: 5, text: 'Adding resources & links', icon: '🔗' },
-    { id: 6, text: 'Finalizing your course', icon: '✨' },
+    { id: 1, text: 'Analyzing your assessment', icon: '📊' },
+    { id: 2, text: 'Researching concepts', icon: '🔍' },
+    { id: 3, text: 'Structuring modules', icon: '🏗️' },
+    { id: 4, text: 'Creating lessons', icon: '📝' },
+    { id: 5, text: 'Adding resources', icon: '🔗' },
+    { id: 6, text: 'Finalizing content', icon: '✨' },
   ];
 
   useEffect(() => {

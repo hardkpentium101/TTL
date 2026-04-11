@@ -114,7 +114,6 @@ class TaskQueue:
 
         # Broadcast final update
         self._broadcast(job_id, task)
-        # Clean up watchers
         self._remove_watchers(job_id)
 
         logger.info(f"Task {job_id} completed successfully")
@@ -132,7 +131,6 @@ class TaskQueue:
 
         # Broadcast failure
         self._broadcast(job_id, task)
-        # Clean up watchers
         self._remove_watchers(job_id)
 
         logger.error(f"Task {job_id} failed: {error}")
@@ -146,10 +144,9 @@ class TaskQueue:
             try:
                 queue.put_nowait(task)
             except asyncio.QueueFull:
-                pass  # Queue full, skip (client is slow)
+                pass
             except Exception:
                 dead_queues.append(queue)
-        # Remove broken queues
         for q in dead_queues:
             try:
                 self._watchers[job_id].remove(q)
@@ -167,7 +164,6 @@ class TaskQueue:
             self._watchers[job_id] = []
         self._watchers[job_id].append(queue)
 
-        # Send current state immediately
         task = self.tasks.get(job_id)
         if task:
             await queue.put(task)
@@ -200,13 +196,13 @@ class TaskQueue:
         """Find and fail tasks that have been running too long."""
         now = datetime.utcnow()
         stuck_jobs = []
-        
+
         for job_id, task in self.tasks.items():
             if task["status"] == "running" and task.get("timeout_at"):
                 timeout_at = datetime.fromisoformat(task["timeout_at"])
                 if now > timeout_at:
                     stuck_jobs.append(job_id)
-        
+
         for job_id in stuck_jobs:
             logger.warning(f"Task {job_id} timed out after {TASK_TIMEOUT_SECONDS}s")
             self.fail_task(job_id, f"Task timed out after {TASK_TIMEOUT_SECONDS} seconds")
@@ -224,171 +220,93 @@ async def generate_course_async(
     creator_sub: Optional[str] = None
 ) -> Any:
     """
-    Two-phase async course generation:
-    Phase 1: Generate lightweight outline (modules + lesson titles)
-    Phase 2: Generate each lesson's content in parallel
+    Async wrapper for LLM course generation.
+    Runs in background without blocking the request.
+    Includes timeout handling and progress tracking.
+
+    Args:
+        llm_manager: LLMManager instance
+        topic: Course topic
+        level: Difficulty level (from user assessment)
+        job_id: Task job ID
+        creator_sub: Auth0 user ID (optional, for saving to DB)
     """
     try:
+        task_queue.update_task(job_id, "running", progress=10, message="Initializing LLM...")
+        await asyncio.sleep(0.1)  # Yield control
+
+        task_queue.update_task(job_id, "running", progress=30, message="Contacting LLM provider...")
+
+        # Run LLM generation in executor to avoid blocking
         loop = asyncio.get_event_loop()
-
-        # ============ PHASE 1: Outline ============
-        task_queue.update_task(job_id, "running", progress=5, message="Generating course outline...")
-        await asyncio.sleep(0.1)
-
-        outline = await loop.run_in_executor(
+        course_data = await loop.run_in_executor(
             None,
-            lambda: llm_manager.generate_course_outline(topic, level)
+            lambda: llm_manager.generate_course(topic, level)
         )
 
-        if not outline or ("title" not in outline and "modules" not in outline):
-            raise Exception("Failed to generate course outline")
+        if course_data:
+            task_queue.update_task(job_id, "running", progress=90, message="Finalizing course...")
+            await asyncio.sleep(0.1)
 
-        course_title = outline.get("title", f"Course: {topic}")
-        modules = outline.get("modules", [])
-        total_lessons = sum(len(m.get("lessons", [])) for m in modules)
+            # Save to database if creator_sub is provided
+            if creator_sub:
+                try:
+                    from models.course import Course, Module, Lesson, LessonContentBlock
 
-        task_queue.update_task(job_id, "running", progress=15,
-                               message=f"Outline ready: {len(modules)} modules, {total_lessons} lessons")
+                    generated_course = course_data.get("course", course_data)
 
-        # ============ PHASE 2: Parallel lesson generation ============
-        is_technical = any(kw in topic.lower() for kw in
-                          ["python", "javascript", "sql", "code", "programming", "api", "react", "node"])
+                    # Convert modules to proper format
+                    modules = []
+                    for module_data in generated_course.get("modules", []):
+                        lessons = []
+                        for lesson_data in module_data.get("lessons", []):
+                            # Convert content blocks
+                            content_blocks = []
+                            for block in lesson_data.get("content", []):
+                                content_blocks.append(LessonContentBlock(**block))
 
-        lesson_tasks = []
-        for mod in modules:
-            mod_title = mod.get("title", "")
-            for lesson in mod.get("lessons", []):
-                lesson_tasks.append({
-                    "module": mod,
-                    "lesson": lesson,
-                    "module_title": mod_title,
-                    "lesson_title": lesson.get("title", ""),
-                    "lesson_id": lesson.get("id", ""),
-                })
+                            lesson = Lesson(
+                                id=lesson_data.get("id", str(datetime.utcnow().timestamp())),
+                                title=lesson_data["title"],
+                                objectives=lesson_data.get("objectives", []),
+                                key_topics=lesson_data.get("key_topics", []),
+                                content=content_blocks,
+                                resources=lesson_data.get("resources", []),
+                                is_enriched=lesson_data.get("is_enriched", False)
+                            )
+                            lessons.append(lesson)
 
-        total = len(lesson_tasks)
-        completed = 0
-        results = [None] * total  # Preserve order
-
-        # Generate lessons in parallel (batch of 3 to avoid rate limits)
-        BATCH_SIZE = 3
-        for batch_start in range(0, total, BATCH_SIZE):
-            batch_end = min(batch_start + BATCH_SIZE, total)
-            batch = lesson_tasks[batch_start:batch_end]
-
-            async def gen_lesson(idx: int, task_info: dict):
-                content = await loop.run_in_executor(
-                    None,
-                    lambda t=task_info: llm_manager.generate_lesson_content(
-                        course_title,
-                        t["module_title"],
-                        t["lesson_title"],
-                        t["lesson_id"],
-                        level,
-                        is_technical,
-                    )
-                )
-                return idx, content
-
-            batch_coros = [gen_lesson(batch_start + i, t) for i, t in enumerate(batch)]
-            batch_results = await asyncio.gather(*batch_coros, return_exceptions=True)
-
-            for res in batch_results:
-                if isinstance(res, Exception):
-                    logger.error(f"Lesson generation failed: {res}")
-                else:
-                    idx, content = res
-                    if content:
-                        results[idx] = content
-                completed += 1
-                progress = 15 + int((completed / total) * 75)
-                task_queue.update_task(job_id, "running", progress=progress,
-                                       message=f"Generating lessons: {completed}/{total}")
-
-        # ============ PHASE 3: Assemble ============
-        task_queue.update_task(job_id, "running", progress=90, message="Assembling course...")
-
-        # Merge generated content back into modules
-        content_idx = 0
-        for mod in modules:
-            for lesson in mod.get("lessons", []):
-                lesson_content = results[content_idx] if content_idx < len(results) and results[content_idx] else None
-                if lesson_content:
-                    # Override outline lesson with generated content
-                    lesson.update(lesson_content)
-                content_idx += 1
-
-        # Build final course structure
-        course_data = {
-            "course": {
-                "title": course_title,
-                "description": outline.get("description", ""),
-                "metadata": {
-                    "level": level,
-                    "estimated_duration": outline.get("estimated_duration", ""),
-                    "prerequisites": outline.get("prerequisites", []),
-                    "learning_outcomes": outline.get("learning_outcomes", []),
-                    "skills_gained": outline.get("skills_gained", []),
-                },
-                "modules": modules,
-            },
-            "_provider": llm_manager.provider_name,
-            "_ai_generated": True,
-            "_two_phase": True,
-        }
-
-        # Save to database
-        if creator_sub:
-            try:
-                from models.course import Course, Module, Lesson, LessonContentBlock
-
-                generated_course = course_data.get("course", course_data)
-
-                db_modules = []
-                for module_data in generated_course.get("modules", []):
-                    lessons = []
-                    for lesson_data in module_data.get("lessons", []):
-                        content_blocks = []
-                        for block in lesson_data.get("content", []):
-                            content_blocks.append(LessonContentBlock(**block))
-
-                        lesson = Lesson(
-                            id=lesson_data.get("id", str(datetime.utcnow().timestamp())),
-                            title=lesson_data.get("title", ""),
-                            objectives=lesson_data.get("objectives", []),
-                            key_topics=lesson_data.get("key_topics", []),
-                            content=content_blocks,
-                            resources=lesson_data.get("resources", []),
-                            is_enriched=lesson_data.get("is_enriched", False),
+                        module = Module(
+                            id=module_data.get("id", str(datetime.utcnow().timestamp())),
+                            title=module_data["title"],
+                            description=module_data.get("description"),
+                            lessons=lessons
                         )
-                        lessons.append(lesson)
+                        modules.append(module)
 
-                    module = Module(
-                        id=module_data.get("id", str(datetime.utcnow().timestamp())),
-                        title=module_data.get("title", ""),
-                        description=module_data.get("description"),
-                        lessons=lessons,
+                    # Create and save course
+                    course = Course(
+                        title=generated_course.get("title", f"Course: {topic}"),
+                        description=generated_course.get("description", ""),
+                        creator=creator_sub,
+                        modules=modules,
+                        tags=generated_course.get("tags", [topic.lower().replace(" ", "-")])
                     )
-                    db_modules.append(module)
+                    await course.insert()
 
-                course = Course(
-                    title=generated_course.get("title", f"Course: {topic}"),
-                    description=generated_course.get("description", ""),
-                    creator=creator_sub,
-                    modules=db_modules,
-                    tags=[topic.lower().replace(" ", "-")],
-                )
-                await course.insert()
-                course_data["course_id"] = str(course.id)
-                course_data["saved"] = True
+                    # Add course ID to result
+                    course_data["course_id"] = str(course.id)
+                    course_data["saved"] = True
 
-            except Exception as db_error:
-                logger.error(f"Failed to save course to DB: {db_error}")
-                course_data["saved"] = False
-                course_data["db_error"] = str(db_error)
+                except Exception as db_error:
+                    logger.error(f"Failed to save course to DB: {db_error}")
+                    course_data["saved"] = False
+                    course_data["db_error"] = str(db_error)
 
-        task_queue.complete_task(job_id, course_data)
-        return course_data
+            task_queue.complete_task(job_id, course_data)
+            return course_data
+        else:
+            raise Exception("LLM returned no course data")
 
     except asyncio.CancelledError:
         task_queue.fail_task(job_id, "Task was cancelled")
