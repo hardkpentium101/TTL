@@ -44,8 +44,7 @@ const NAV_ITEMS = [
   },
 ];
 
-const Sidebar = memo(function Sidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(true);
+const Sidebar = memo(function Sidebar({ isCollapsed, onToggle, onExpand }) {
   const [isHoveringAppArea, setIsHoveringAppArea] = useState(false);
   const [userCourses, setUserCourses] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -82,14 +81,24 @@ const Sidebar = memo(function Sidebar() {
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768) {
-        setIsCollapsed(true);
+      const isMobile = window.innerWidth < 768;
+      if (isMobile) {
+        onExpand(true);
         setIsHoveringAppArea(false);
       }
     };
-    handleResize();
+
+    // Don't trigger on mount — only on resize
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, [onExpand]);
+
+  // Disable hover on touch devices
+  useEffect(() => {
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (hasTouch) {
+      setIsHoveringAppArea(false);
+    }
   }, []);
 
   const isActive = useCallback((path) => location.pathname === path, [location.pathname]);
@@ -116,28 +125,35 @@ const Sidebar = memo(function Sidebar() {
   };
 
   const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
+    onToggle(!isCollapsed);
     setIsHoveringAppArea(false);
   };
 
-  // Expander visibility:
-  // - Collapsed + not hovering: hidden
-  // - Collapsed + hovering app area: visible (emerges on right)
-  // - Expanded: always visible (on right)
-  const showExpander = !isCollapsed || isHoveringAppArea;
+  // Click outside to close when expanded
+  useEffect(() => {
+    if (!isCollapsed) {
+      const handleClickOutside = (e) => {
+        if (!e.target.closest('aside')) {
+          onToggle(true);
+        }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isCollapsed, onToggle]);
 
   return (
     <>
       {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 flex flex-col h-screen bg-[var(--bg-card)] border-r border-[var(--border-light)] transition-all duration-300 ease-out z-50 ${
-          isCollapsed ? 'w-[72px]' : 'w-[280px]'
+          isCollapsed ? 'w-[52px]' : 'w-[270px]'
         }`}
       >
-        {/* Top Section - App Icon (left) | Expander (overlaps app icon on hover, right when expanded) */}
+        {/* Top Section - App Icon + Expander (expander below app icon, overlapped) */}
         <div
           data-sidebar-top="true"
-          className="h-16 flex items-center px-3 flex-shrink-0 relative"
+          className="h-16 flex-shrink-0 relative"
           onMouseEnter={() => {
             if (isCollapsed) setIsHoveringAppArea(true);
           }}
@@ -145,40 +161,36 @@ const Sidebar = memo(function Sidebar() {
             setIsHoveringAppArea(false);
           }}
         >
-          {/* App Icon - LEFT side */}
-          <div
-            data-app-icon="true"
-            className={`w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center shadow-md cursor-pointer hover:shadow-lg transition-all duration-300 ${
-              isHoveringAppArea ? 'opacity-0 scale-75' : 'opacity-100 scale-100'
-            }`}
+          {/* Sidebar Expander - behind app icon, revealed on hover */}
+          <button
             onClick={toggleSidebar}
+            className="absolute inset-0 flex items-center justify-center z-10"
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            <span className="text-white text-lg font-bold">T</span>
-          </div>
-
-          {/* Sidebar Expander - slides over app icon on hover, moves to right when expanded */}
-          {showExpander && (
-            <button
-              onClick={toggleSidebar}
-              className={`w-10 h-10 rounded-xl transition-all duration-300 flex items-center justify-center group flex-shrink-0 ${
-                isCollapsed
-                  ? 'absolute left-3 opacity-100'  // Overlapping app icon position
-                  : 'ml-auto opacity-100'          // Right side when expanded
-              }`}
-              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
+            <div className="w-10 h-10 rounded-xl bg-[var(--bg-tertiary)] flex items-center justify-center group hover:bg-[var(--bg-secondary)] transition-colors duration-300">
               <svg className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors duration-300" viewBox="0 0 24 24" fill="none">
                 <rect x="2" y="4" width="20" height="16" rx="3" stroke="currentColor" strokeWidth="2" />
                 <line x1="9" y1="4" x2="9" y2="20" stroke="currentColor" strokeWidth="2" />
               </svg>
-            </button>
-          )}
+            </div>
+          </button>
+
+          {/* App Icon - in front, same absolute centering */}
+          <div
+            data-app-icon="true"
+            className={`absolute inset-0 m-auto w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center shadow-md cursor-pointer hover:shadow-lg transition-all duration-300 z-20 ${
+              isHoveringAppArea ? 'opacity-0 scale-75 pointer-events-none' : 'opacity-100 scale-100'
+            }`}
+            onClick={() => { onToggle(!isCollapsed); setIsHoveringAppArea(false); }}
+          >
+            <span className="text-white text-lg font-bold">T</span>
+          </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map((item, index) => (
+        <nav className="flex-1 space-y-1 overflow-y-auto">
+          {NAV_ITEMS.map((item) => (
             <div key={item.path}>
               <Link
                 to={item.path}
@@ -188,22 +200,22 @@ const Sidebar = memo(function Sidebar() {
                     setMyCoursesOpen(!myCoursesOpen);
                   }
                 }}
-                className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${
-                  isActive(item.path) && item.path !== '/my-courses'
-                    ? 'bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-primary-dark)] text-white shadow-md'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+                className={`sidebar-link flex items-center gap-3 px-3 py-3 group ${
+                  isActive(item.path)
+                    ? 'active-link bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-primary-dark)] shadow-md'
+                    : 'hover:bg-[var(--bg-tertiary)]'
                 }`}
                 title={isCollapsed ? item.label : undefined}
               >
-                <span className={`w-5 h-5 flex-shrink-0 transition-colors duration-200 ${
-                  isActive(item.path) && item.path !== '/my-courses'
-                    ? 'text-white'
-                    : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'
+                <span className={`w-5 h-5 flex-shrink-0 sidebar-icon ${
+                  isActive(item.path)
+                    ? 'active-link-icon'
+                    : 'group-hover:text-[var(--text-primary)]'
                 }`}>
                   {item.icon}
                 </span>
                 <span
-                  className={`font-medium whitespace-nowrap transition-all duration-300 overflow-hidden ${
+                  className={`font-medium whitespace-nowrap overflow-hidden ${
                     isCollapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[200px]'
                   }`}
                 >
@@ -225,16 +237,13 @@ const Sidebar = memo(function Sidebar() {
               {item.path === '/my-courses' && myCoursesOpen && !isCollapsed && (
                 <div className="ml-3 mt-2 space-y-1 animate-fade-in">
                   {userCourses.length > 0 ? (
-                    userCourses.slice(0, 5).map((course) => (
+                    userCourses.map((course) => (
                       <button
                         key={course.id}
                         onClick={(e) => handleCourseClick(course, e)}
-                        className="w-full text-left px-3 py-2.5 rounded-lg text-sm text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                        className="w-full text-left px-3 py-2 rounded-lg text-sm text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors no-underline"
                       >
                         <div className="font-medium truncate">{course.title}</div>
-                        <div className="text-xs text-[var(--text-muted)] mt-0.5">
-                          {course.modules_count} modules
-                        </div>
                       </button>
                     ))
                   ) : (
@@ -248,32 +257,19 @@ const Sidebar = memo(function Sidebar() {
                       </Link>
                     </div>
                   )}
-                  {userCourses.length > 5 && (
-                    <Link
-                      to="/my-courses"
-                      className="block px-3 py-2 text-xs text-[var(--accent-primary)] hover:underline"
-                    >
-                      View all {userCourses.length} courses →
-                    </Link>
-                  )}
                 </div>
-              )}
-
-              {/* Section Separator */}
-              {index < NAV_ITEMS.length - 1 && (
-                <div data-separator="true" className="my-2" />
               )}
             </div>
           ))}
         </nav>
 
-        {/* User Section - no border-t, moved left by 10px */}
+        {/* User Section */}
         <div
           data-user-section="true"
-          className="px-2 py-3 flex-shrink-0 overflow-hidden"
+          className="flex-shrink-0 overflow-hidden"
         >
           {isLoading ? (
-            <div className="flex items-center gap-3 px-3 py-2 min-h-[48px]">
+            <div className="flex items-center gap-3 px-1.5 py-2 min-h-[48px]">
               <div className="w-10 h-10 rounded-full skeleton flex-shrink-0" />
               {!isCollapsed && (
                 <div className="flex-1 min-w-0">
@@ -284,7 +280,7 @@ const Sidebar = memo(function Sidebar() {
             </div>
           ) : isAuthenticated && user ? (
             <div className="space-y-2">
-              <div className="flex items-center gap-3 px-3 py-2 min-h-[48px]">
+              <div className="flex items-center gap-3 px-1.5 py-2 min-h-[48px]">
                 <img
                   src={user.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=c4703c&color=fff&size=80`}
                   alt={user.name || 'User'}
@@ -304,7 +300,7 @@ const Sidebar = memo(function Sidebar() {
               {isCollapsed ? (
                 <button
                   onClick={() => logout()}
-                  className="w-full p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--error)] hover:bg-[var(--error-bg)] transition-colors"
+                  className="w-full flex items-center justify-center px-1.5 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--error)] hover:bg-[var(--error-bg)] transition-colors"
                   title="Sign Out"
                   aria-label="Sign Out"
                 >
@@ -315,7 +311,7 @@ const Sidebar = memo(function Sidebar() {
               ) : (
                 <button
                   onClick={() => logout()}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--text-tertiary)] hover:bg-[var(--error-bg)] hover:text-[var(--error)] transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--text-tertiary)] hover:bg-[var(--error-bg)] hover:text-[var(--error)] transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -326,7 +322,7 @@ const Sidebar = memo(function Sidebar() {
             </div>
           ) : (
             <div className="space-y-2">
-              <div className="flex items-center gap-3 px-3 py-2 min-h-[48px]">
+              <div className="flex items-center gap-3 px-1.5 py-2 min-h-[48px]">
                 <div
                   data-guest-icon="true"
                   className="w-10 h-10 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center flex-shrink-0"
@@ -345,7 +341,7 @@ const Sidebar = memo(function Sidebar() {
               {isCollapsed ? (
                 <button
                   onClick={() => login()}
-                  className="w-full p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/5 transition-colors"
+                  className="w-full flex items-center justify-center px-1.5 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/5 transition-colors"
                   title="Sign In"
                   aria-label="Sign In"
                 >
