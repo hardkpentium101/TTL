@@ -78,6 +78,7 @@ class Auth0JWTBearer:
                         algorithms=["RS256"],
                         audience=audience,
                         issuer=AUTH0_ISSUER,
+                        leeway=1200,  # Allow 20min clock skew (system clock is ~15min behind)
                     )
                     break
                 except jwt.InvalidAudienceError:
@@ -143,6 +144,7 @@ async def get_optional_user(
                     algorithms=["RS256"],
                     audience=audience,
                     issuer=AUTH0_ISSUER,
+                    leeway=1200,  # Allow 20min clock skew (system clock is ~15min behind)
                 )
                 break
             except jwt.InvalidAudienceError:
@@ -199,33 +201,27 @@ async def get_user_or_anonymous(
 
     try:
         signing_key = Auth0JWTBearer().jwks_client.get_signing_key_from_jwt(token).key
-        print("[DEBUG] Token signing key obtained")
-        print(f"[DEBUG] Valid audiences: {VALID_AUDIENCES}")
 
         payload = None
         for audience in VALID_AUDIENCES:
             if not audience:
                 continue
             try:
-                print(f"[DEBUG] Trying audience: {audience}")
                 payload = jwt.decode(
                     token,
                     signing_key,
                     algorithms=["RS256"],
                     audience=audience,
                     issuer=AUTH0_ISSUER,
+                    leeway=1200,  # Allow 20min clock skew (system clock is ~15min behind)
                 )
-                print(f"[DEBUG] Successfully decoded with audience: {audience}")
                 break
-            except jwt.InvalidAudienceError as e:
-                print(f"[DEBUG] InvalidAudienceError for {audience}: {e}")
+            except jwt.InvalidAudienceError:
                 continue
-            except Exception as e:
-                print(f"[DEBUG] Other error for {audience}: {e}")
+            except Exception:
                 continue
 
         if payload is None:
-            print("[DEBUG] No valid payload found for any audience")
             raise Exception("Invalid audience")
 
         return {
@@ -237,11 +233,7 @@ async def get_user_or_anonymous(
             "is_anonymous": False,
         }
 
-    except Exception as e:
-        print(f"[DEBUG] Exception in get_user_or_anonymous: {e}")
-        import traceback
-
-        traceback.print_exc()
+    except Exception:
         # Invalid token - return anonymous user instead of erroring
         import uuid
 

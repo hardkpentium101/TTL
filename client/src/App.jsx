@@ -29,11 +29,14 @@ function AuthSync() {
   const { isAuthenticated, syncUser } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      syncUser();
-      // Refetch courses when auth state is established (handles page refresh and token refresh)
-      refreshCoursesEvent.dispatchEvent(new Event('refresh'));
-    }
+    const syncAndRefresh = async () => {
+      if (isAuthenticated) {
+        await syncUser(); // Wait for user to be synced in backend
+        // Refetch courses when auth state is established (handles page refresh and token refresh)
+        refreshCoursesEvent.dispatchEvent(new Event('refresh'));
+      }
+    };
+    syncAndRefresh();
   }, [isAuthenticated, syncUser]);
 
   return null;
