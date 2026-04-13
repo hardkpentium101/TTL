@@ -1,5 +1,5 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { useEffect, useState, useRef, useLayoutEffect, lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import Auth0ProviderWithNavigate from './context/Auth0Provider';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -11,6 +11,25 @@ import { refreshCoursesEvent } from './events';
 
 // Lazy-loaded page components
 const BookmarksPage = lazy(() => import('./pages/BookmarksPage'));
+
+function ScrollToTop() {
+  const { pathname, key } = useLocation();
+
+  useLayoutEffect(() => {
+    // Use requestAnimationFrame to ensure DOM is updated before scrolling
+    requestAnimationFrame(() => {
+      const root = document.getElementById('root');
+      if (root) root.scrollTop = 0;
+
+      const mainScroll = document.querySelector('main > div.overflow-y-auto');
+      if (mainScroll) mainScroll.scrollTop = 0;
+
+      window.scrollTo(0, 0);
+    });
+  }, [pathname, key]);
+
+  return null;
+}
 
 // Loading fallback component for Suspense
 function PageLoader() {
@@ -45,6 +64,7 @@ function AppLayout() {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(isMobile);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     const handleResize = () => {
@@ -120,7 +140,7 @@ function AppLayout() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto">
+        <div key={location.pathname} className="flex-1 overflow-y-auto">
           <Outlet />
         </div>
 
@@ -150,6 +170,7 @@ function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        <ScrollToTop />
         <Auth0ProviderWithNavigate>
           <AuthSync />
           <Routes>
