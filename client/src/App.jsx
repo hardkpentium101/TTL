@@ -1,5 +1,5 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { useEffect, useState, useLayoutEffect, lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import Auth0ProviderWithNavigate from './context/Auth0Provider';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -11,6 +11,25 @@ import { refreshCoursesEvent } from './events';
 
 // Lazy-loaded page components
 const BookmarksPage = lazy(() => import('./pages/BookmarksPage'));
+
+function ScrollToTop() {
+  const { pathname, key } = useLocation();
+
+  useLayoutEffect(() => {
+    // Use requestAnimationFrame to ensure DOM is updated before scrolling
+    requestAnimationFrame(() => {
+      const root = document.getElementById('root');
+      if (root) root.scrollTop = 0;
+
+      const mainScroll = document.querySelector('main > div.overflow-y-auto');
+      if (mainScroll) mainScroll.scrollTop = 0;
+
+      window.scrollTo(0, 0);
+    });
+  }, [pathname, key]);
+
+  return null;
+}
 
 // Loading fallback component for Suspense
 function PageLoader() {
@@ -44,11 +63,16 @@ function AuthSync() {
 function AppLayout() {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(isMobile);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
-      if (mobile) setIsSidebarCollapsed(true);
+      if (mobile) {
+        setIsSidebarCollapsed(true);
+        setIsMobileSidebarOpen(false);
+      }
     };
 
     window.addEventListener('resize', handleResize);
@@ -59,13 +83,32 @@ function AppLayout() {
     ? 0
     : isSidebarCollapsed ? 52 : 270;
 
+  const handleMobileSidebarToggle = () => {
+    setIsMobileSidebarOpen(!isMobileSidebarOpen);
+  };
+
   return (
     <div className="flex min-h-screen bg-[var(--bg-primary)]">
       <Sidebar
-        isCollapsed={isSidebarCollapsed}
-        onToggle={(collapsed) => setIsSidebarCollapsed(collapsed)}
+        isCollapsed={isMobileSidebarOpen ? false : isSidebarCollapsed}
+        onToggle={(collapsed) => {
+          if (isMobile && window.innerWidth < 768) {
+            setIsMobileSidebarOpen(!collapsed);
+          } else {
+            setIsSidebarCollapsed(collapsed);
+          }
+        }}
         onExpand={(collapsed) => setIsSidebarCollapsed(collapsed)}
+        isMobileSidebarOpen={isMobileSidebarOpen}
       />
+
+      {/* Mobile sidebar overlay */}
+      {isMobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
 
       <main
         className="flex-1 flex flex-col min-h-screen transition-all duration-300"
@@ -73,7 +116,23 @@ function AppLayout() {
       >
         {/* Top Bar with App Name */}
         <header className="sticky top-0 z-30 bg-[var(--bg-card)]/80 backdrop-blur-md border-b border-[var(--border-light)]">
-          <div className="flex items-center justify-end px-4 md:px-6" style={{ paddingTop: '6px', paddingBottom: '6px' }}>
+          <div className="flex items-center justify-between px-4 md:px-6" style={{ paddingTop: '6px', paddingBottom: '6px' }}>
+            {/* Hamburger menu button - mobile only, hidden on desktop but takes space for alignment */}
+            <button
+              onClick={handleMobileSidebarToggle}
+              className="md:invisible md:pointer-events-none flex items-center justify-center w-10 h-10 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+              aria-label={isMobileSidebarOpen ? 'Close menu' : 'Open menu'}
+              tabIndex={window.innerWidth >= 768 ? -1 : 0}
+            >
+              <svg className="w-6 h-6 text-[var(--text-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {isMobileSidebarOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 18M6 6l12 0" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
+
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-semibold text-[var(--text-secondary)] hidden sm:block" style={{ fontFamily: 'var(--font-display)' }}>
                 Text-to-Learn
@@ -82,7 +141,7 @@ function AppLayout() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto">
+        <div key={location.pathname} className="flex-1 overflow-y-auto">
           <Outlet />
         </div>
 
@@ -112,6 +171,7 @@ function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        <ScrollToTop />
         <Auth0ProviderWithNavigate>
           <AuthSync />
           <Routes>
