@@ -44,7 +44,7 @@ const NAV_ITEMS = [
   },
 ];
 
-const Sidebar = memo(function Sidebar({ isCollapsed, onToggle, onExpand }) {
+const Sidebar = memo(function Sidebar({ isCollapsed, onToggle, onExpand, isMobileSidebarOpen }) {
   const [isHoveringAppArea, setIsHoveringAppArea] = useState(false);
   const [userCourses, setUserCourses] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -148,7 +148,12 @@ const Sidebar = memo(function Sidebar({ isCollapsed, onToggle, onExpand }) {
       <aside
         className={`fixed top-0 left-0 flex flex-col h-screen bg-[var(--bg-card)] border-r border-[var(--border-light)] transition-all duration-300 ease-out z-50 ${
           isCollapsed ? 'w-[52px]' : 'w-[270px]'
+        } md:translate-x-0 ${
+          isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
+        style={{
+          maxHeight: '100vh',
+        }}
       >
         {/* Top Section - App Icon + Expander (expander below app icon, overlapped) */}
         <div
@@ -198,6 +203,11 @@ const Sidebar = memo(function Sidebar({ isCollapsed, onToggle, onExpand }) {
                   if (item.path === '/my-courses') {
                     e.preventDefault();
                     setMyCoursesOpen(!myCoursesOpen);
+                  } else {
+                    // Close mobile sidebar when navigating
+                    if (window.innerWidth < 768 && isMobileSidebarOpen) {
+                      onToggle(false);
+                    }
                   }
                 }}
                 className={`sidebar-link flex items-center gap-3 px-3 py-3 group ${
