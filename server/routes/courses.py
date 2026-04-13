@@ -5,20 +5,18 @@ Handles course CRUD operations, generation, and retrieval.
 
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Security
 from fastapi.security import HTTPAuthorizationCredentials
-from typing import List, Optional
+from typing import Optional
 from bson import ObjectId
 from datetime import datetime
 import re
 
-from models.course import Course, Module, Lesson, LessonContentBlock, CourseCreate
+from models.course import Course, Module, Lesson, LessonContentBlock
 from models.user import User
 from middlewares.auth import (
-    Auth0JWTBearer,
     get_optional_user,
     get_user_or_anonymous,
     security,
 )
-from config.database import get_database
 
 router = APIRouter(prefix="/api", tags=["courses"])
 
@@ -156,12 +154,6 @@ async def get_user_courses(
     Returns list with basic info (no full content).
     """
     try:
-        token = credentials.credentials if credentials else None
-        print(
-            f"[DEBUG] Token present: {bool(token)}, is_anonymous: {user.get('is_anonymous', False)}"
-        )
-        print(f"[DEBUG] get_user_courses called with user sub: {user.get('sub')}")
-
         # Validate user has sub
         if not user or "sub" not in user:
             raise HTTPException(status_code=400, detail="Invalid user: missing sub")
@@ -171,8 +163,6 @@ async def get_user_courses(
             .sort(-Course.created_at)
             .to_list()
         )
-
-        print(f"[DEBUG] Found {len(courses)} courses for user {user['sub']}")
 
         # Return simplified course list
         course_list = []
