@@ -4,12 +4,12 @@ import { useAuth } from './hooks/useAuth';
 import Auth0ProviderWithNavigate from './context/Auth0Provider';
 import ErrorBoundary from './components/ErrorBoundary';
 import Sidebar from './components/Sidebar';
+import AssessmentFlow from './pages/AssessmentFlow';
 import CoursePage from './pages/CoursePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { refreshCoursesEvent } from './events';
 
 // Lazy-loaded page components
-const Home = lazy(() => import('./pages/Home'));
 const BookmarksPage = lazy(() => import('./pages/BookmarksPage'));
 const MyCoursesPage = lazy(() => import('./pages/MyCoursesPage'));
 
@@ -93,11 +93,7 @@ function App() {
           <AuthSync />
           <Routes>
             <Route path="/" element={<AppLayout />}>
-              <Route index element={
-                <Suspense fallback={<PageLoader />}>
-                  <Home />
-                </Suspense>
-              } />
+              <Route index element={<AssessmentFlow />} />
 
               <Route path="my-courses" element={
                 <Suspense fallback={<PageLoader />}>

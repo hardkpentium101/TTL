@@ -160,7 +160,7 @@ const Sidebar = memo(function Sidebar() {
           {showExpander && (
             <button
               onClick={toggleSidebar}
-              className={`w-10 h-10 rounded-xl border border-[var(--border-light)] bg-[var(--bg-card)] hover:bg-[var(--bg-tertiary)] transition-all duration-300 flex items-center justify-center group flex-shrink-0 ${
+              className={`w-10 h-10 rounded-xl transition-all duration-300 flex items-center justify-center group flex-shrink-0 ${
                 isCollapsed
                   ? 'absolute left-3 opacity-100'  // Overlapping app icon position
                   : 'ml-auto opacity-100'          // Right side when expanded
@@ -168,7 +168,7 @@ const Sidebar = memo(function Sidebar() {
               aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
-              <svg className="w-4 h-4 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors duration-300" viewBox="0 0 24 24" fill="none">
+              <svg className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors duration-300" viewBox="0 0 24 24" fill="none">
                 <rect x="2" y="4" width="20" height="16" rx="3" stroke="currentColor" strokeWidth="2" />
                 <line x1="9" y1="4" x2="9" y2="20" stroke="currentColor" strokeWidth="2" />
               </svg>
@@ -304,7 +304,7 @@ const Sidebar = memo(function Sidebar() {
               {isCollapsed ? (
                 <button
                   onClick={() => logout()}
-                  className="w-full p-2 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--error-bg)] hover:text-[var(--error)] transition-colors"
+                  className="w-full p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--error)] hover:bg-[var(--error-bg)] transition-colors"
                   title="Sign Out"
                   aria-label="Sign Out"
                 >
@@ -345,7 +345,7 @@ const Sidebar = memo(function Sidebar() {
               {isCollapsed ? (
                 <button
                   onClick={() => login()}
-                  className="w-full p-2 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--accent-primary)] hover:text-white transition-colors"
+                  className="w-full p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/5 transition-colors"
                   title="Sign In"
                   aria-label="Sign In"
                 >

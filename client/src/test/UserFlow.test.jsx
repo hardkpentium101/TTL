@@ -36,6 +36,8 @@ const mockGenerateCourseAsync = vi.fn()
 const mockWaitForCourse = vi.fn()
 const mockGetCourseById = vi.fn()
 const mockGetUserCourses = vi.fn().mockResolvedValue({ courses: [] })
+const mockGetCourseStatus = vi.fn()
+const mockGetCourseResult = vi.fn()
 
 vi.mock('../utils/api', () => ({
   generateCourseAsync: (...args) => mockGenerateCourseAsync(...args),
@@ -43,6 +45,8 @@ vi.mock('../utils/api', () => ({
   getCourseById: (...args) => mockGetCourseById(...args),
   getUserCourses: (...args) => mockGetUserCourses(...args),
   getOrCreateUser: vi.fn().mockResolvedValue({ user: { id: '1', name: 'Test User' } }),
+  getCourseStatus: (...args) => mockGetCourseStatus(...args),
+  getCourseResult: (...args) => mockGetCourseResult(...args),
   api: {
     get: vi.fn(),
     post: vi.fn(),
@@ -117,6 +121,8 @@ describe('Home Page - Course Generation Flow', () => {
     vi.clearAllMocks()
     mockNavigate.mockReset()
     mockLocationState = null
+    // Clear localStorage to prevent state leakage between tests
+    localStorage.removeItem('ttl_generation_state')
   })
 
   it('should render the home page with topic input', () => {
@@ -191,17 +197,14 @@ describe('Home Page - Course Generation Flow', () => {
   it('should show progress during course generation', async () => {
     const user = userEvent.setup()
     render(<Home />, { wrapper })
-    
+
     mockGenerateCourseAsync.mockResolvedValue({ job_id: 'test-job-123' })
-    mockWaitForCourse.mockImplementation((jobId, onProgress) => {
-      onProgress({ progress: 50, message: 'Generating...' })
-      return Promise.resolve({ course: mockCourseData })
-    })
-    
+    mockGetCourseStatus.mockResolvedValue({ status: 'running', progress: 50, message: 'Generating...' })
+
     const textarea = screen.getByPlaceholderText(/what do you want to learn/i)
     await user.type(textarea, 'Testing')
     await user.click(screen.getByRole('button', { name: /generate course/i }))
-    
+
     await waitFor(() => {
       expect(screen.getByText(/course generation/i)).toBeInTheDocument()
     })

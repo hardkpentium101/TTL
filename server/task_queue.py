@@ -26,6 +26,8 @@ class TaskQueue:
         self.results: Dict[str, Any] = {}
         self.errors: Dict[str, str] = {}
         self._cleanup_task: Optional[asyncio.Task] = None
+        # SSE watchers: job_id -> list of queues
+        self._watchers: Dict[str, list] = {}
 
     def start_cleanup_task(self):
         """Start background cleanup task."""
@@ -68,7 +70,7 @@ class TaskQueue:
         return job_id
 
     def update_task(self, job_id: str, status: str, progress: int = None, message: str = None):
-        """Update task status."""
+        """Update task status and broadcast to watchers."""
         if job_id not in self.tasks:
             return
 
@@ -88,6 +90,9 @@ class TaskQueue:
         if message:
             task["message"] = message
 
+        # Broadcast to SSE watchers
+        self._broadcast(job_id, task)
+
     def complete_task(self, job_id: str, result: Any):
         """Mark task as completed with result."""
         if job_id not in self.tasks:
@@ -106,6 +111,11 @@ class TaskQueue:
         task["progress"] = 100
         task["message"] = "Course generated successfully"
         self.results[job_id] = result
+
+        # Broadcast final update
+        self._broadcast(job_id, task)
+        self._remove_watchers(job_id)
+
         logger.info(f"Task {job_id} completed successfully")
 
     def fail_task(self, job_id: str, error: str):
@@ -118,7 +128,47 @@ class TaskQueue:
         task["completed_at"] = datetime.utcnow().isoformat()
         task["message"] = f"Failed: {error}"
         self.errors[job_id] = error
+
+        # Broadcast failure
+        self._broadcast(job_id, task)
+        self._remove_watchers(job_id)
+
         logger.error(f"Task {job_id} failed: {error}")
+
+    def _broadcast(self, job_id: str, task: dict):
+        """Push task update to all SSE watchers."""
+        if job_id not in self._watchers:
+            return
+        dead_queues = []
+        for queue in self._watchers.get(job_id, []):
+            try:
+                queue.put_nowait(task)
+            except asyncio.QueueFull:
+                pass
+            except Exception:
+                dead_queues.append(queue)
+        for q in dead_queues:
+            try:
+                self._watchers[job_id].remove(q)
+            except (ValueError, KeyError):
+                pass
+
+    def _remove_watchers(self, job_id: str):
+        """Remove all watchers for a finished task."""
+        self._watchers.pop(job_id, None)
+
+    async def watch_task(self, job_id: str) -> asyncio.Queue:
+        """Create a queue that receives live updates for a task."""
+        queue: asyncio.Queue = asyncio.Queue(maxsize=50)
+        if job_id not in self._watchers:
+            self._watchers[job_id] = []
+        self._watchers[job_id].append(queue)
+
+        task = self.tasks.get(job_id)
+        if task:
+            await queue.put(task)
+
+        return queue
 
     def get_task(self, job_id: str) -> Optional[dict]:
         """Get task status."""
@@ -146,13 +196,13 @@ class TaskQueue:
         """Find and fail tasks that have been running too long."""
         now = datetime.utcnow()
         stuck_jobs = []
-        
+
         for job_id, task in self.tasks.items():
             if task["status"] == "running" and task.get("timeout_at"):
                 timeout_at = datetime.fromisoformat(task["timeout_at"])
                 if now > timeout_at:
                     stuck_jobs.append(job_id)
-        
+
         for job_id in stuck_jobs:
             logger.warning(f"Task {job_id} timed out after {TASK_TIMEOUT_SECONDS}s")
             self.fail_task(job_id, f"Task timed out after {TASK_TIMEOUT_SECONDS} seconds")
@@ -177,7 +227,7 @@ async def generate_course_async(
     Args:
         llm_manager: LLMManager instance
         topic: Course topic
-        level: Difficulty level
+        level: Difficulty level (from user assessment)
         job_id: Task job ID
         creator_sub: Auth0 user ID (optional, for saving to DB)
     """
