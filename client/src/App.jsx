@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useLayoutEffect, lazy, Suspense } from 'react';
+import { useEffect, useState, useLayoutEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import Auth0ProviderWithNavigate from './context/Auth0Provider';
