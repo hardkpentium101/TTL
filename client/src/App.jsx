@@ -117,11 +117,12 @@ function AppLayout() {
         {/* Top Bar with App Name */}
         <header className="sticky top-0 z-30 bg-[var(--bg-card)]/80 backdrop-blur-md border-b border-[var(--border-light)]">
           <div className="flex items-center justify-between px-4 md:px-6" style={{ paddingTop: '6px', paddingBottom: '6px' }}>
-            {/* Hamburger menu button - mobile only */}
+            {/* Hamburger menu button - mobile only, hidden on desktop but takes space for alignment */}
             <button
               onClick={handleMobileSidebarToggle}
-              className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+              className="md:invisible md:pointer-events-none flex items-center justify-center w-10 h-10 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
               aria-label={isMobileSidebarOpen ? 'Close menu' : 'Open menu'}
+              tabIndex={window.innerWidth >= 768 ? -1 : 0}
             >
               <svg className="w-6 h-6 text-[var(--text-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {isMobileSidebarOpen ? (
