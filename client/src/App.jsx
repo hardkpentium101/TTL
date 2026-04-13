@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import Auth0ProviderWithNavigate from './context/Auth0Provider';
@@ -42,14 +42,38 @@ function AuthSync() {
 }
 
 function AppLayout() {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(isMobile);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      if (mobile) setIsSidebarCollapsed(true);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const sidebarWidth = isMobile && window.innerWidth < 768
+    ? 0
+    : isSidebarCollapsed ? 52 : 270;
+
   return (
     <div className="flex min-h-screen bg-[var(--bg-primary)]">
-      <Sidebar />
+      <Sidebar
+        isCollapsed={isSidebarCollapsed}
+        onToggle={(collapsed) => setIsSidebarCollapsed(collapsed)}
+        onExpand={(collapsed) => setIsSidebarCollapsed(collapsed)}
+      />
 
-      <main className="flex-1 flex flex-col min-h-screen ml-0 lg:ml-[52px] transition-all duration-300">
+      <main
+        className="flex-1 flex flex-col min-h-screen transition-all duration-300"
+        style={{ marginLeft: `${sidebarWidth}px` }}
+      >
         {/* Top Bar with App Name */}
         <header className="sticky top-0 z-30 bg-[var(--bg-card)]/80 backdrop-blur-md border-b border-[var(--border-light)]">
-          <div className="flex items-center justify-end px-4 md:px-6 py-2">
+          <div className="flex items-center justify-end px-4 md:px-6" style={{ paddingTop: '6px', paddingBottom: '6px' }}>
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-semibold text-[var(--text-secondary)] hidden sm:block" style={{ fontFamily: 'var(--font-display)' }}>
                 Text-to-Learn
@@ -62,7 +86,7 @@ function AppLayout() {
           <Outlet />
         </div>
 
-        <footer className="border-t border-[var(--border-light)] py-6 mt-auto">
+        <footer className="border-t border-[var(--border-light)] mt-auto" style={{ paddingTop: '18px', paddingBottom: '18px' }}>
           <div className="max-w-5xl mx-auto px-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">

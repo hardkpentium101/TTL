@@ -589,6 +589,7 @@ function CourseGeneration({ topic, level }) {
     const startGeneration = async () => {
       try {
         const { job_id } = await generateCourseAsync(topic, level);
+        if (cancelled) return;
 
         // Connect to SSE stream for real-time progress
         eventSource = new EventSource(`${API_BASE_URL}/api/course-status-stream/${job_id}`);

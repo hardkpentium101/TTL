@@ -44,8 +44,7 @@ const NAV_ITEMS = [
   },
 ];
 
-const Sidebar = memo(function Sidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(true);
+const Sidebar = memo(function Sidebar({ isCollapsed, onToggle, onExpand }) {
   const [isHoveringAppArea, setIsHoveringAppArea] = useState(false);
   const [userCourses, setUserCourses] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -82,14 +81,24 @@ const Sidebar = memo(function Sidebar() {
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768) {
-        setIsCollapsed(true);
+      const isMobile = window.innerWidth < 768;
+      if (isMobile) {
+        onExpand(true);
         setIsHoveringAppArea(false);
       }
     };
-    handleResize();
+
+    // Don't trigger on mount — only on resize
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, [onExpand]);
+
+  // Disable hover on touch devices
+  useEffect(() => {
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (hasTouch) {
+      setIsHoveringAppArea(false);
+    }
   }, []);
 
   const isActive = useCallback((path) => location.pathname === path, [location.pathname]);
@@ -116,28 +125,35 @@ const Sidebar = memo(function Sidebar() {
   };
 
   const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
+    onToggle(!isCollapsed);
     setIsHoveringAppArea(false);
   };
 
-  // Expander visibility:
-  // - Collapsed + not hovering: hidden
-  // - Collapsed + hovering app area: visible (emerges on right)
-  // - Expanded: always visible (on right)
-  const showExpander = !isCollapsed || isHoveringAppArea;
+  // Click outside to close when expanded
+  useEffect(() => {
+    if (!isCollapsed) {
+      const handleClickOutside = (e) => {
+        if (!e.target.closest('aside')) {
+          onToggle(true);
+        }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isCollapsed, onToggle]);
 
   return (
     <>
       {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 flex flex-col h-screen bg-[var(--bg-card)] border-r border-[var(--border-light)] transition-all duration-300 ease-out z-50 ${
-          isCollapsed ? 'w-[52px]' : 'w-[285px]'
+          isCollapsed ? 'w-[52px]' : 'w-[270px]'
         }`}
       >
-        {/* Top Section - App Icon (left) | Expander (overlaps app icon on hover, right when expanded) */}
+        {/* Top Section - App Icon + Expander (expander below app icon, overlapped) */}
         <div
           data-sidebar-top="true"
-          className="h-16 flex items-center px-1.5 flex-shrink-0 relative"
+          className="h-16 flex-shrink-0 relative"
           onMouseEnter={() => {
             if (isCollapsed) setIsHoveringAppArea(true);
           }}
@@ -145,40 +161,36 @@ const Sidebar = memo(function Sidebar() {
             setIsHoveringAppArea(false);
           }}
         >
-          {/* App Icon - LEFT side */}
-          <div
-            data-app-icon="true"
-            className={`w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center shadow-md cursor-pointer hover:shadow-lg transition-all duration-300 ${
-              isHoveringAppArea ? 'opacity-0 scale-75' : 'opacity-100 scale-100'
-            }`}
+          {/* Sidebar Expander - behind app icon, revealed on hover */}
+          <button
             onClick={toggleSidebar}
+            className="absolute inset-0 flex items-center justify-center z-10"
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            <span className="text-white text-lg font-bold">T</span>
-          </div>
-
-          {/* Sidebar Expander - slides over app icon on hover, moves to right when expanded */}
-          {showExpander && (
-            <button
-              onClick={toggleSidebar}
-              className={`w-10 h-10 rounded-xl transition-all duration-300 flex items-center justify-center group flex-shrink-0 ${
-                isCollapsed
-                  ? 'absolute left-3 opacity-100'  // Overlapping app icon position
-                  : 'ml-auto opacity-100'          // Right side when expanded
-              }`}
-              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
+            <div className="w-10 h-10 rounded-xl bg-[var(--bg-tertiary)] flex items-center justify-center group hover:bg-[var(--bg-secondary)] transition-colors duration-300">
               <svg className="w-5 h-5 text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors duration-300" viewBox="0 0 24 24" fill="none">
                 <rect x="2" y="4" width="20" height="16" rx="3" stroke="currentColor" strokeWidth="2" />
                 <line x1="9" y1="4" x2="9" y2="20" stroke="currentColor" strokeWidth="2" />
               </svg>
-            </button>
-          )}
+            </div>
+          </button>
+
+          {/* App Icon - in front, same absolute centering */}
+          <div
+            data-app-icon="true"
+            className={`absolute inset-0 m-auto w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center shadow-md cursor-pointer hover:shadow-lg transition-all duration-300 z-20 ${
+              isHoveringAppArea ? 'opacity-0 scale-75 pointer-events-none' : 'opacity-100 scale-100'
+            }`}
+            onClick={() => { onToggle(!isCollapsed); setIsHoveringAppArea(false); }}
+          >
+            <span className="text-white text-lg font-bold">T</span>
+          </div>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map((item, index) => (
+          {NAV_ITEMS.map((item) => (
             <div key={item.path}>
               <Link
                 to={item.path}
@@ -299,7 +311,7 @@ const Sidebar = memo(function Sidebar() {
               ) : (
                 <button
                   onClick={() => logout()}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--text-tertiary)] hover:bg-[var(--error-bg)] hover:text-[var(--error)] transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--text-tertiary)] hover:bg-[var(--error-bg)] hover:text-[var(--error)] transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
