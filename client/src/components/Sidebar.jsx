@@ -131,13 +131,13 @@ const Sidebar = memo(function Sidebar() {
       {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 flex flex-col h-screen bg-[var(--bg-card)] border-r border-[var(--border-light)] transition-all duration-300 ease-out z-50 ${
-          isCollapsed ? 'w-[72px]' : 'w-[280px]'
+          isCollapsed ? 'w-[52px]' : 'w-[285px]'
         }`}
       >
         {/* Top Section - App Icon (left) | Expander (overlaps app icon on hover, right when expanded) */}
         <div
           data-sidebar-top="true"
-          className="h-16 flex items-center px-3 flex-shrink-0 relative"
+          className="h-16 flex items-center px-1.5 flex-shrink-0 relative"
           onMouseEnter={() => {
             if (isCollapsed) setIsHoveringAppArea(true);
           }}
@@ -177,7 +177,7 @@ const Sidebar = memo(function Sidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 space-y-1 overflow-y-auto">
           {NAV_ITEMS.map((item, index) => (
             <div key={item.path}>
               <Link
@@ -188,7 +188,7 @@ const Sidebar = memo(function Sidebar() {
                     setMyCoursesOpen(!myCoursesOpen);
                   }
                 }}
-                className={`sidebar-link flex items-center gap-3 px-3 py-3 rounded-xl group ${
+                className={`sidebar-link flex items-center gap-3 px-3 py-3 group ${
                   isActive(item.path)
                     ? 'active-link bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-primary-dark)] shadow-md'
                     : 'hover:bg-[var(--bg-tertiary)]'
@@ -251,13 +251,13 @@ const Sidebar = memo(function Sidebar() {
           ))}
         </nav>
 
-        {/* User Section - no border-t, moved left by 10px */}
+        {/* User Section */}
         <div
           data-user-section="true"
-          className="px-2 py-3 flex-shrink-0 overflow-hidden"
+          className="flex-shrink-0 overflow-hidden"
         >
           {isLoading ? (
-            <div className="flex items-center gap-3 px-3 py-2 min-h-[48px]">
+            <div className="flex items-center gap-3 px-1.5 py-2 min-h-[48px]">
               <div className="w-10 h-10 rounded-full skeleton flex-shrink-0" />
               {!isCollapsed && (
                 <div className="flex-1 min-w-0">
@@ -268,7 +268,7 @@ const Sidebar = memo(function Sidebar() {
             </div>
           ) : isAuthenticated && user ? (
             <div className="space-y-2">
-              <div className="flex items-center gap-3 px-3 py-2 min-h-[48px]">
+              <div className="flex items-center gap-3 px-1.5 py-2 min-h-[48px]">
                 <img
                   src={user.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'U')}&background=c4703c&color=fff&size=80`}
                   alt={user.name || 'User'}
@@ -288,7 +288,7 @@ const Sidebar = memo(function Sidebar() {
               {isCollapsed ? (
                 <button
                   onClick={() => logout()}
-                  className="w-full p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--error)] hover:bg-[var(--error-bg)] transition-colors"
+                  className="w-full flex items-center justify-center px-1.5 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--error)] hover:bg-[var(--error-bg)] transition-colors"
                   title="Sign Out"
                   aria-label="Sign Out"
                 >
@@ -310,7 +310,7 @@ const Sidebar = memo(function Sidebar() {
             </div>
           ) : (
             <div className="space-y-2">
-              <div className="flex items-center gap-3 px-3 py-2 min-h-[48px]">
+              <div className="flex items-center gap-3 px-1.5 py-2 min-h-[48px]">
                 <div
                   data-guest-icon="true"
                   className="w-10 h-10 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center flex-shrink-0"
@@ -329,7 +329,7 @@ const Sidebar = memo(function Sidebar() {
               {isCollapsed ? (
                 <button
                   onClick={() => login()}
-                  className="w-full p-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/5 transition-colors"
+                  className="w-full flex items-center justify-center px-1.5 py-2 rounded-xl text-[var(--text-secondary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/5 transition-colors"
                   title="Sign In"
                   aria-label="Sign In"
                 >
