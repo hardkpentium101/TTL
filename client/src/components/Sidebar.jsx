@@ -188,22 +188,22 @@ const Sidebar = memo(function Sidebar() {
                     setMyCoursesOpen(!myCoursesOpen);
                   }
                 }}
-                className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${
-                  isActive(item.path) && item.path !== '/my-courses'
-                    ? 'bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-primary-dark)] text-white shadow-md'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+                className={`sidebar-link flex items-center gap-3 px-3 py-3 rounded-xl group ${
+                  isActive(item.path)
+                    ? 'active-link bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-primary-dark)] shadow-md'
+                    : 'hover:bg-[var(--bg-tertiary)]'
                 }`}
                 title={isCollapsed ? item.label : undefined}
               >
-                <span className={`w-5 h-5 flex-shrink-0 transition-colors duration-200 ${
-                  isActive(item.path) && item.path !== '/my-courses'
-                    ? 'text-white'
-                    : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'
+                <span className={`w-5 h-5 flex-shrink-0 sidebar-icon ${
+                  isActive(item.path)
+                    ? 'active-link-icon'
+                    : 'group-hover:text-[var(--text-primary)]'
                 }`}>
                   {item.icon}
                 </span>
                 <span
-                  className={`font-medium whitespace-nowrap transition-all duration-300 overflow-hidden ${
+                  className={`font-medium whitespace-nowrap overflow-hidden ${
                     isCollapsed ? 'opacity-0 max-w-0' : 'opacity-100 max-w-[200px]'
                   }`}
                 >
@@ -225,16 +225,13 @@ const Sidebar = memo(function Sidebar() {
               {item.path === '/my-courses' && myCoursesOpen && !isCollapsed && (
                 <div className="ml-3 mt-2 space-y-1 animate-fade-in">
                   {userCourses.length > 0 ? (
-                    userCourses.slice(0, 5).map((course) => (
+                    userCourses.map((course) => (
                       <button
                         key={course.id}
                         onClick={(e) => handleCourseClick(course, e)}
-                        className="w-full text-left px-3 py-2.5 rounded-lg text-sm text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                        className="w-full text-left px-3 py-2 rounded-lg text-sm text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors no-underline"
                       >
                         <div className="font-medium truncate">{course.title}</div>
-                        <div className="text-xs text-[var(--text-muted)] mt-0.5">
-                          {course.modules_count} modules
-                        </div>
                       </button>
                     ))
                   ) : (
@@ -248,20 +245,7 @@ const Sidebar = memo(function Sidebar() {
                       </Link>
                     </div>
                   )}
-                  {userCourses.length > 5 && (
-                    <Link
-                      to="/my-courses"
-                      className="block px-3 py-2 text-xs text-[var(--accent-primary)] hover:underline"
-                    >
-                      View all {userCourses.length} courses →
-                    </Link>
-                  )}
                 </div>
-              )}
-
-              {/* Section Separator */}
-              {index < NAV_ITEMS.length - 1 && (
-                <div data-separator="true" className="my-2" />
               )}
             </div>
           ))}

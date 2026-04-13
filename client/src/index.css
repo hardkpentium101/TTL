@@ -182,6 +182,49 @@ a:hover {
   text-decoration: none;
 }
 
+/* Override global a styles for sidebar navigation links */
+a.sidebar-link {
+  color: var(--accent-primary) !important;
+  text-decoration: none !important;
+  transition: none !important;
+}
+
+a.sidebar-link:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary) !important;
+  text-decoration: none !important;
+}
+
+a.sidebar-link .sidebar-icon {
+  color: var(--accent-primary) !important;
+}
+
+a.sidebar-link:hover .sidebar-icon {
+  color: var(--text-primary) !important;
+}
+
+a.sidebar-link.active-link {
+  color: white !important;
+  transition: none !important;
+}
+
+a.sidebar-link.active-link:hover {
+  background: linear-gradient(to right, var(--accent-primary), var(--accent-primary-dark));
+  color: white !important;
+}
+
+a.sidebar-link.active-link:hover .active-link-icon {
+  color: white !important;
+}
+
+a.sidebar-link:active {
+  text-decoration: none !important;
+}
+
+a.sidebar-link .active-link-icon {
+  color: white !important;
+}
+
 .dark a:hover {
   background: var(--accent-primary);
   color: white;

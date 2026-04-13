@@ -11,7 +11,6 @@ import { refreshCoursesEvent } from './events';
 
 // Lazy-loaded page components
 const BookmarksPage = lazy(() => import('./pages/BookmarksPage'));
-const MyCoursesPage = lazy(() => import('./pages/MyCoursesPage'));
 
 // Loading fallback component for Suspense
 function PageLoader() {
@@ -94,14 +93,6 @@ function App() {
           <Routes>
             <Route path="/" element={<AppLayout />}>
               <Route index element={<AssessmentFlow />} />
-
-              <Route path="my-courses" element={
-                <Suspense fallback={<PageLoader />}>
-                  <ProtectedRoute>
-                    <MyCoursesPage />
-                  </ProtectedRoute>
-                </Suspense>
-              } />
 
               <Route path="bookmarks" element={
                 <Suspense fallback={<PageLoader />}>
