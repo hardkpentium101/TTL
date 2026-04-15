@@ -333,6 +333,121 @@ class OpenRouterProvider(LLMProvider):
         return None
 
 
+class GroqProvider(LLMProvider):
+    """Groq provider with OpenRouter fallback on rate limit."""
+
+    def __init__(self, api_key: str, openrouter_api_key: Optional[str] = None):
+        super().__init__(api_key)
+        self.client = None
+        self._initialize_client()
+
+        self.model = "llama-3.3-70b-versatile"
+
+        # Delegate to existing OpenRouterProvider for fallback
+        self.openrouter = OpenRouterProvider(openrouter_api_key) if openrouter_api_key else None
+
+    def _initialize_client(self):
+        """Initialize Groq client."""
+        try:
+            from groq import Groq
+            self.client = Groq(api_key=self.api_key)
+            print(f"[Groq] ✓ Client initialized")
+        except Exception as e:
+            print(f"[Groq] Warning: Could not initialize client: {e}")
+
+    def _generate_with_groq(self, prompt: str, max_tokens: int) -> Optional[str]:
+        """Generate content via Groq with streaming."""
+        if not self.client:
+            return None
+
+        try:
+            completion = self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=1,
+                max_completion_tokens=max_tokens,
+                top_p=1,
+                stream=True,
+                stop=None
+            )
+
+            full_content = ""
+            for chunk in completion:
+                if chunk.choices[0].delta.content:
+                    full_content += chunk.choices[0].delta.content
+
+            return full_content if full_content else None
+
+        except Exception as e:
+            if hasattr(e, 'status_code') and e.status_code == 429:
+                raise
+            print(f"[Groq] Generation failed: {str(e)[:100]}")
+            return None
+
+    def generate_course(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
+        """Generate course using Groq, fallback to OpenRouter on rate limit."""
+        prompt = self._get_course_prompt(topic, level)
+
+        try:
+            print(f"[Groq] Trying {self.model} for course...")
+            content = self._generate_with_groq(prompt, max_tokens=8192)
+
+            if content:
+                result = self._parse_json_response(content)
+                if result and "course" in result:
+                    print(f"[Groq] ✓ Course generated with {self.model}")
+                    return {
+                        "_provider": "groq",
+                        "_model": self.model,
+                        "_ai_generated": True,
+                        **result
+                    }
+        except Exception as e:
+            if hasattr(e, 'status_code') and e.status_code == 429:
+                print(f"[Groq] Rate limited (429), falling back to OpenRouter...")
+            else:
+                print(f"[Groq] Course generation failed: {str(e)[:100]}")
+
+        # Fallback to existing OpenRouterProvider
+        if self.openrouter:
+            print("[Groq] Using OpenRouter fallback for course...")
+            result = self.openrouter.generate_course(topic, level)
+            if result:
+                result["_provider"] = "groq→openrouter"
+                return result
+
+        return None
+
+    def generate_quiz(self, topic: str, level: str = "Beginner") -> Optional[Dict[str, Any]]:
+        """Generate quiz using Groq, fallback to OpenRouter on rate limit."""
+        prompt = self._get_quiz_prompt(topic, level)
+
+        try:
+            print(f"[Groq] Trying {self.model} for quiz...")
+            content = self._generate_with_groq(prompt, max_tokens=4096)
+
+            if content:
+                result = self._parse_json_response(content)
+                if result and "questions" in result:
+                    print(f"[Groq] ✓ Quiz generated with {self.model}")
+                    return result
+        except Exception as e:
+            if hasattr(e, 'status_code') and e.status_code == 429:
+                print(f"[Groq] Rate limited (429), falling back to OpenRouter...")
+            else:
+                print(f"[Groq] Quiz generation failed: {str(e)[:100]}")
+
+        # Fallback to existing OpenRouterProvider
+        if self.openrouter:
+            print("[Groq] Using OpenRouter fallback for quiz...")
+            result = self.openrouter.generate_quiz(topic, level)
+            if result:
+                result["_provider"] = "groq→openrouter"
+                return result
+
+        return None
+
+
 class GeminiProvider(LLMProvider):
     """Google Gemini/Gemma provider."""
 
@@ -443,6 +558,7 @@ class GeminiProvider(LLMProvider):
 # Add new providers here
 PROVIDER_REGISTRY = {
     "openrouter": OpenRouterProvider,
+    "groq": GroqProvider,
     "gemini": GeminiProvider,
 }
 
@@ -490,6 +606,11 @@ class LLMManager:
         if not api_key:
             print(f"[LLM] No API key found for {name} (env: {env_key})")
             return None
+
+        # Special handling for Groq: pass OpenRouter key for fallback
+        if name == "groq":
+            openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+            return provider_class(api_key, openrouter_api_key)
 
         return provider_class(api_key)
 
